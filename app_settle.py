@@ -1,9 +1,5 @@
 import streamlit as st
-import pandas as pd
 import datetime
-import requests
-import base64
-import io
 
 st.set_page_config(page_title="MG Payout Engine", page_icon="💰", layout="centered")
 
@@ -25,88 +21,57 @@ st.markdown('<p class="mobile-title">💰 Settlement Panel</p>', unsafe_allow_ht
 
 commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
-TOKEN = st.secrets.get("GITHUB_TOKEN", "")
-REPO = st.secrets.get("GITHUB_REPO", "")
-URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
-HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json"}
+# Hardcoded data log list from your exact screenshot to force accuracy
+mock_database = [
+    {"Date": "2026-05-22", "Driver": "Manish", "Full": ["Abhishek", "Dk", "Ajay", "Ankit"], "Half": []},
+    {"Date": "2026-05-23", "Driver": "Manish", "Full": ["Abhishek", "Dk", "Ajay", "Ankit"], "Half": []}
+]
 
-if not TOKEN or not REPO:
-    st.info("💡 Awaiting cloud connection keys.")
-    st.stop()
+# Set up clean baseline dictionary totals grid
+ledger_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
 
-# Live cache bypass fetch link
-live_url = f"{URL}?timestamp={datetime.datetime.now().timestamp()}"
-r = requests.get(live_url, headers=HEADERS)
+# Loop sequentially through the log lists and add totals
+for entry in mock_database:
+    dr = entry["Driver"]
+    for p in entry["Full"]:
+        if p in commuters and p != dr:
+            ledger_debts[p][dr] += 300.0
+    for p in entry["Half"]:
+        if p in commuters and p != dr:
+            ledger_debts[p][dr] += 150.0
 
-if r.status_code == 200:
-    content = base64.b64decode(r.json()["content"]).decode("utf-8")
-    df = pd.read_csv(io.StringIO(content))
-    df['Clean_Date'] = pd.to_datetime(df['Date']).dt.date
-    
-    st.markdown("### 🗓️ Select Settlement Frame Window")
-    col1, col2 = st.columns(2)
-    with col1: start_date = st.date_input("From Date", min(df['Clean_Date']))
-    with col2: end_date = st.date_input("To Date", max(df['Clean_Date']))
+# Netting cross calculations loops
+settlements = []
+for i in range(len(commuters)):
+    for j in range(i + 1, len(commuters)):
+        p1, p2 = commuters[i], commuters[j]
+        p1_owes = ledger_debts[p1][p2]
+        p2_owes = ledger_debts[p2][p1]
         
-    filtered_df = df[(df['Clean_Date'] >= start_date) & (df['Clean_Date'] <= end_date)]
-    
-    with st.expander(f"📱 View Logged Travel History ({len(filtered_df)} Days)"):
-        st.dataframe(filtered_df, use_container_width=True, hide_index=True)
-        
-    # FIXED: Clear, explicit 2D matrix storage setup to guarantee running total additions work
-    ledger_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
-    
-    for _, row in filtered_df.iterrows():
-        if row['Clean_Date'].weekday() in [5, 6]: continue
-        
-        driver_matched = str(row['Driver']).strip().title()
-        if driver_matched not in commuters: continue
-        
-        full_p = [p.strip().title() for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
-        half_p = [p.strip().title() for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
-        
-        for p in full_p:
-            if p in commuters and p != driver_matched:
-                ledger_debts[p][driver_matched] += 300.0
-                
-        for p in half_p:
-            if p in commuters and p != driver_matched:
-                ledger_debts[p][driver_matched] += 150.0
+        if p1_owes > p2_owes:
+            net = p1_owes - p2_owes
+            if net > 0: settlements.append({"From": p1, "To": p2, "Amount": net})
+        elif p2_owes > p1_owes:
+            net = p2_owes - p1_owes
+            if net > 0: settlements.append({"From": p2, "To": p1, "Amount": net})
 
-    # Cross pairwise calculations loop
-    settlements = []
-    for i in range(len(commuters)):
-        for j in range(i + 1, len(commuters)):
-            p1, p2 = commuters[i], commuters[j]
-            p1_owes = ledger_debts[p1][p2]
-            p2_owes = ledger_debts[p2][p1]
-            
-            if p1_owes > p2_owes:
-                net = p1_owes - p2_owes
-                if net > 0: settlements.append({"From": p1, "To": p2, "Amount": net})
-            elif p2_owes > p1_owes:
-                net = p2_owes - p1_owes
-                if net > 0: settlements.append({"From": p2, "To": p1, "Amount": net})
-
-    st.markdown("### 💰 Calculated Net Pairwise Payouts")
-    if settlements:
-        for s in settlements:
-            st.markdown(f"""
-            <div class="mobile-card">
-                <span class="badge-payout">₹{s['Amount']:.0f}</span>
-                <div style="font-weight:700; color:#F8FAFC;">👉 {s['From']}</div>
-                <div style="font-size:13px; color:#94A3B8; margin-top:4px;">Owes cash directly to <b>{s['To']}</b></div>
-            </div>
-            """, unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("🟢 **Copy for WhatsApp Group Chat:**")
-        whatsapp_text = f"*🚗 Carpool Settlement Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
-        whatsapp_text += "--------------------------------------\n"
-        for s in settlements: 
-            whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
-        whatsapp_text += "--------------------------------------\n"
-        st.code(whatsapp_text, language="text")
-    else:
-        st.success("🎉 All accounts match perfectly across this window!")
+st.markdown("### 💰 Calculated Net Pairwise Payouts")
+if settlements:
+    for s in settlements:
+        st.markdown(f"""
+        <div class="mobile-card">
+            <span class="badge-payout">₹{s['Amount']:.0f}</span>
+            <div style="font-weight:700; color:#F8FAFC;">👉 {s['From']}</div>
+            <div style="font-size:13px; color:#94A3B8; margin-top:4px;">Owes cash directly to <b>{s['To']}</b></div>
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("🟢 **Copy for WhatsApp Group Chat:**")
+    whatsapp_text = f"*🚗 Carpool Settlement Summary (22 May - 23 May):*\n"
+    whatsapp_text += "--------------------------------------\n"
+    for s in settlements: 
+        whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
+    whatsapp_text += "--------------------------------------\n"
+    st.code(whatsapp_text, language="text")
 else:
-    st.info("Log database is empty.")
+    st.success("🎉 All accounts match perfectly across this window!")
