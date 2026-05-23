@@ -53,11 +53,10 @@ if r.status_code == 200:
     with st.expander(f"📱 View Logged Travel History ({len(filtered_df)} Days)", expanded=True):
         st.dataframe(filtered_df.sort_values(by="Clean_Date", ascending=False), use_container_width=True, hide_index=True)
         
-    # Balanced 2D ledger grid map tracking allocations
+    # Matrix tracker
     ledger_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
     
     for _, row in filtered_df.iterrows():
-        # FIXED: Weekend bypass line completely dropped so Saturdays/Sundays register dynamically
         driver_matched = str(row['Driver']).strip().title()
         if driver_matched not in commuters: continue
         
@@ -72,7 +71,7 @@ if r.status_code == 200:
             if p in commuters and p != driver_matched:
                 ledger_debts[p][driver_matched] += 150.0
 
-    # Cross pairwise net settlement processing logic loops
+    # Cross pairwise netting calculation logic loop
     settlements = []
     for i in range(len(commuters)):
         for j in range(i + 1, len(commuters)):
@@ -87,25 +86,25 @@ if r.status_code == 200:
                 net = p2_owes - p1_owes
                 if net > 0: settlements.append({"From": p2, "To": p1, "Amount": net})
 
-st.markdown("### 💰 Calculated Net Pairwise Payouts")
-if settlements:
-    for s in settlements:
-        st.markdown(f"""
-        <div class="mobile-card">
-            <span class="badge-payout">₹{s['Amount']:.0f}</span>
-            <div style="font-weight:700; color:#F8FAFC;">👉 {s['From']}</div>
-            <div style="font-size:13px; color:#94A3B8; margin-top:4px;">Owes cash directly to <b>{s['To']}</b></div>
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("🟢 **Copy for WhatsApp Group Chat:**")
-    whatsapp_text = f"*🚗 Carpool Settlement Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
-    whatsapp_text += "--------------------------------------\n"
-    for s in settlements: 
-        whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
-    whatsapp_text += "--------------------------------------\n"
-    st.code(whatsapp_text, language="text")
-else:
-    st.success("🎉 All accounts match perfectly across this window!")
+    st.markdown("### 💰 Calculated Net Pairwise Payouts")
+    if settlements:
+        for s in settlements:
+            st.markdown(f"""
+            <div class="mobile-card">
+                <span class="badge-payout">₹{s['Amount']:.0f}</span>
+                <div style="font-weight:700; color:#F8FAFC;">👉 {s['From']}</div>
+                <div style="font-size:13px; color:#94A3B8; margin-top:4px;">Owes cash directly to <b>{s['To']}</b></div>
+            </div>
+            """, unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("🟢 **Copy for WhatsApp Group Chat:**")
+        whatsapp_text = f"*🚗 Carpool Settlement Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
+        whatsapp_text += "--------------------------------------\n"
+        for s in settlements: 
+            whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
+        whatsapp_text += "--------------------------------------\n"
+        st.code(whatsapp_text, language="text")
+    else:
+        st.success("🎉 All accounts match perfectly across this window!")
 else:
     st.info("Log database file is empty.")
