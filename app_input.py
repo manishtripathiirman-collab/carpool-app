@@ -48,8 +48,6 @@ if "just_saved" not in st.session_state:
     st.session_state.just_saved = False
 if "saved_message" not in st.session_state:
     st.session_state.saved_message = ""
-if "date_override" not in st.session_state:
-    st.session_state.date_override = None
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
@@ -65,13 +63,12 @@ if TOKEN and REPO:
         content = base64.b64decode(r.json()["content"]).decode("utf-8")
         df_existing = pd.read_csv(io.StringIO(content))
 
-# Evaluate calendar picker positioning with dynamic fallback state
-default_date = datetime.date.today()
-if st.session_state.date_override is not None:
-    default_date = st.session_state.date_override
-    st.session_state.date_override = None
-
-travel_date = st.date_input("Date of Travel", default_date)
+# Check if browser was forced to reset via back button URL parameter trigger
+if "reset" in st.query_params:
+    st.query_params.clear()
+    travel_date = st.date_input("Date of Travel", datetime.date.today())
+else:
+    travel_date = st.date_input("Date of Travel", datetime.date.today())
 
 date_exists = False
 if not df_existing.empty:
@@ -143,9 +140,10 @@ if st.session_state.just_saved:
     st.session_state.just_saved = False
     st.session_state.saved_message = ""
     time.sleep(2.5)
+    st.query_params["reset"] = "true"
     st.rerun()
 
-# PRIORITY 2: Hard Lock Screen Check with Back Button Added
+# PRIORITY 2: Hard Lock Screen Check
 elif date_exists and not is_admin_authenticated:
     st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
     st.markdown(f"""
@@ -157,14 +155,14 @@ elif date_exists and not is_admin_authenticated:
         </div>
     """, unsafe_allow_html=True)
     
-    # NATIVE STREAMLIT RESET NAVIGATION ACTION KEY
+    # Force query string hard reload on click to drop phone memory cache completely
     st.markdown('<div class="back-btn">', unsafe_allow_html=True)
     if st.button("🔙 GO BACK TO TODAY"):
-        st.session_state.date_override = datetime.date.today()
+        st.query_params["reset"] = "true"
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# PRIORITY 3: Render standard entry inputs
+# PRIORITY 3: Render standard input parameters
 else:
     if date_exists and is_admin_authenticated:
         st.warning(f"⚠️ Mode: Admin Override Active. Saving will overwrite the existing entry for {travel_date}.")
