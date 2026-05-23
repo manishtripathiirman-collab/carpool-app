@@ -2,12 +2,12 @@ import streamlit as st
 import pandas as pd
 from collections import defaultdict
 import datetime
-import os
+import requests
+import base64
+import io
 
-# --- MOBILE-FIRST WINDOW CONFIGURATION ---
 st.set_page_config(page_title="MG Payout Engine", page_icon="💰", layout="centered")
 
-# --- MATCHING CYBERPUNK DARK THEME ---
 st.markdown("""
     <style>
     .stApp {
@@ -15,69 +15,64 @@ st.markdown("""
                           url('https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=800&q=80');
         background-size: cover; background-position: center; background-attachment: fixed;
     }
-    .mobile-card {
-        background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(10px);
-        border-radius: 16px; padding: 16px; margin-bottom: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); border: 1px solid rgba(244, 63, 94, 0.25);
-    }
-    .badge-payout {
-        background-color: rgba(244, 63, 94, 0.15); color: #FB7185;
-        padding: 6px 14px; border-radius: 10px; font-size: 18px; font-weight: 800; float: right;
-    }
-    .mobile-title {
-        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-        font-size: 26px !important; font-weight: 800; color: #FFFFFF;
-        text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
-    }
+    .mobile-card { background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(10px); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid rgba(244, 63, 94, 0.25); }
+    .badge-payout { background-color: rgba(244, 63, 94, 0.15); color: #FB7185; padding: 6px 14px; border-radius: 10px; font-size: 18px; font-weight: 800; float: right; }
+    .mobile-title { font-family: sans-serif; font-size: 26px !important; font-weight: 800; color: #FFFFFF; }
     label, p, span { color: #CBD5E1 !important; }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<p class="mobile-title">💰 Settlement Panel</p>', unsafe_allow_html=True)
-st.caption("Fetches mobile inputs automatically to calculate strict net transfers.")
 
 commuters = ["Manish Tripathi", "Abhishek Chaudhary", "Dk Maurya", "Ajay Nair", "Ankit Kapoor"]
-DATA_FILE = "carpool_logs.csv"
 
-if os.path.exists(DATA_FILE):
-    df = pd.read_csv(DATA_FILE)
+TOKEN = st.secrets.get("GITHUB_TOKEN", "")
+REPO = st.secrets.get("GITHUB_REPO", "")
+URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
+HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json"}
+
+if not TOKEN or not REPO:
+    st.info("💡 Awaiting cloud connection keys. Please paste GITHUB_TOKEN inside your Streamlit Dashboard Secrets panel configuration.")
+    st.stop()
+
+r = requests.get(URL, headers=HEADERS)
+if r.status_code == 200:
+    content = base64.b64decode(r.json()["content"]).decode("utf-8")
+    df = pd.read_csv(io.StringIO(content))
     df['Clean_Date'] = pd.to_datetime(df['Date']).dt.date
     
-    # --- DATE WINDOW SELECTOR ---
     st.markdown("### 🗓️ Select Settlement Frame Window")
     col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("From Date", min(df['Clean_Date']))
-    with col2:
-        end_date = st.date_input("To Date", max(df['Clean_Date']))
+    with col1: start_date = st.date_input("From Date", min(df['Clean_Date']))
+    with col2: end_date = st.date_input("To Date", max(df['Clean_Date']))
         
     filtered_df = df[(df['Clean_Date'] >= start_date) & (df['Clean_Date'] <= end_date)]
     
     with st.expander(f"📱 View Logged Travel History ({len(filtered_df)} Days)"):
         st.dataframe(filtered_df, use_container_width=True, hide_index=True)
         
-    # --- LOGIC SETTLEMENT ENGINE ---
     raw_debts = defaultdict(lambda: defaultdict(float))
     
     for _, row in filtered_df.iterrows():
-        if row['Clean_Date'].weekday() in [5, 6]:
-            continue # Automatic weekend skipping
-            
-        driver = row['Driver']
+        if row['Clean_Date'].weekday() in [5, 6]: continue
+        driver = str(row['Driver']).strip()
         
-        # Parse passenger lists out of string cells
+        # FIXED: Robust clean parsing loops for comma-separated string cells
         full_p = [p.strip() for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
         half_p = [p.strip() for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
         
         for p in full_p:
-            if p in commuters and p != driver:
-                raw_debts[p][driver] += 300.0
+            # Matches commuter names perfectly even if surrounded by trailing spaces or line breaks
+            matched_name = next((c for c in commuters if c.lower() == p.lower()), None)
+            if matched_name and matched_name != driver: 
+                raw_debts[matched_name][driver] += 300.0
                 
         for p in half_p:
-            if p in commuters and p != driver:
-                raw_debts[p][driver] += 150.0
+            matched_name = next((c for c in commuters if c.lower() == p.lower()), None)
+            if matched_name and matched_name != driver: 
+                raw_debts[matched_name][driver] += 150.0
 
-    # Netting calculations
+    # Cross-netting Matrix
     settlements = []
     for i in range(len(commuters)):
         for j in range(i + 1, len(commuters)):
@@ -91,7 +86,6 @@ if os.path.exists(DATA_FILE):
                 net = p2_owes - p1_owes
                 if net > 0: settlements.append({"From": p2, "To": p1, "Amount": net})
 
-    # --- SHOW MOBILE CARDS ---
     st.markdown("### 💰 Calculated Net Pairwise Payouts")
     if settlements:
         for s in settlements:
@@ -102,14 +96,11 @@ if os.path.exists(DATA_FILE):
                 <div style="font-size:13px; color:#94A3B8; margin-top:4px;">Owes cash directly to <b>{s['To']}</b></div>
             </div>
             """, unsafe_allow_html=True)
-            
-        # Copy-ready clipboard block
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("🟢 **Copy for WhatsApp Group Chat:**")
         whatsapp_text = f"*🚗 Carpool Settlement Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
         whatsapp_text += "--------------------------------------\n"
-        for s in settlements:
-            whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
+        for s in settlements: whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
         whatsapp_text += "--------------------------------------\n"
         st.code(whatsapp_text, language="text")
     else:
