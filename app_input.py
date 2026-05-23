@@ -17,12 +17,18 @@ st.markdown("""
     .mobile-title { font-family: sans-serif; font-size: 26px !important; font-weight: 800; color: #FFFFFF; }
     label, p, span { color: #CBD5E1 !important; }
     div.stButton > button { width: 100%; background-color: #6366F1 !important; color: white !important; border-radius: 12px; font-weight: 700; padding: 12px; }
+    .admin-btn > div.stButton > button { background-color: #EF4444 !important; }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<p class="mobile-title">📝 Log Daily Commute</p>', unsafe_allow_html=True)
 
-commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
+# Master list of all members
+all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
+
+# --- INITIALIZE HOLIDAY TRACKER STATE ---
+if "holiday_list" not in st.session_state:
+    st.session_state.holiday_list = []
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
@@ -39,8 +45,18 @@ if TOKEN and REPO:
         content = base64.b64decode(r.json()["content"]).decode("utf-8")
         df_existing = pd.read_csv(io.StringIO(content))
 
+# --- FILTER ACTIVE COMMUTERS BASED ON HOLIDAYS ---
+commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
+
+# Fallback safety check if everyone is selected as away
+if not commuters:
+    st.warning("⚠️ All commuters are marked on holiday! Showing the full list instead.")
+    commuters = all_commuters
+
+# Main Input Interface
 travel_date = st.date_input("Date of Travel", datetime.date.today())
 driver = st.selectbox("Designated Driver", commuters)
+
 passenger_options = [c for c in commuters if c != driver]
 full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options)
 remaining_options = [p for p in passenger_options if p not in full_day]
@@ -78,12 +94,63 @@ if st.button("💾 SAVE TRIP TO LEDGER"):
         st.success(f"🎉 Trip successfully saved for {travel_date.strftime('%d %b')}!")
         st.rerun()
 
-# --- NEW: VISUAL HISTORY TRACKER IN INPUT APP ---
 st.markdown("---")
 if not df_existing.empty:
     total_days = len(df_existing)
     st.markdown(f"📊 **Total Logged Days in Database:** `{total_days} Days`")
     with st.expander("👁️ View All Logged Days", expanded=False):
         st.dataframe(df_existing.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
+
+    # --- UPDATED: ADMIN CONTROL PANEL WITH HOLIDAY MATRIX ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    with st.expander("🛠️ Admin Controls (Authorized Only)"):
+        admin_pin = st.text_input("Enter Admin PIN to Unlock", type="password")
+        
+        if admin_pin == "9999":
+            st.success("Access Granted: Master Controls Unlocked")
+            
+            # 🌴 Holiday Matrix Feature Section
+            st.markdown("#### 🌴 Skip This Person (Active Holiday Matrix)")
+            st.caption("Check the boxes of members who are away this week to hide them from entry screens:")
+            
+            selected_holidays = []
+            cols = st.columns(len(all_commuters))
+            for idx, person in enumerate(all_commuters):
+                with cols[idx]:
+                    is_away = st.checkbox(person, value=(person in st.session_state.holiday_list))
+                    if is_away:
+                        selected_holidays.append(person)
+            
+            # Dynamically update the session list if a checkbox shifts
+            if sorted(selected_holidays) != sorted(st.session_state.holiday_list):
+                st.session_state.holiday_list = selected_holidays
+                st.toast("Active commuter list updated!")
+                st.rerun()
+                
+            st.markdown("---")
+            
+            # Standard Date Deletion Tool
+            st.markdown("#### 🗑️ Delete Ledger Records")
+            delete_date = st.selectbox("Select Date to Delete completely:", sorted(df_existing["Date"].unique(), reverse=True))
+            
+            st.markdown('<div class="admin-btn">', unsafe_allow_html=True)
+            if st.button("🗑️ PERMANENTLY DELETE CHOSEN DATE"):
+                df_final = df_existing[df_existing["Date"].astype(str) != str(delete_date)]
+                csv_buffers = df_final.to_csv(index=False)
+                
+                r_exist = requests.get(URL, headers=HEADERS)
+                sha = r_exist.json()["sha"] if r_exist.status_code == 200 else None
+                
+                payload = {
+                    "message": f"Admin delete records for {delete_date}",
+                    "content": base64.b64encode(csv_buffers.encode("utf-8")).decode("utf-8"),
+                    "sha": sha
+                }
+                
+                r_put = requests.put(URL, headers=HEADERS, json=payload)
+                if r_put.status_code in [200, 201]:
+                    st.error(f"🗑️ Date {delete_date} has been completely wiped from ledger!")
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 else:
-    st.info("No logs found in the cloud database file yet.")
+    st.info("No logs found in the
