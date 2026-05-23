@@ -119,28 +119,4 @@ if not df_existing.empty:
             st.markdown('<div class="exit-admin-btn">', unsafe_allow_html=True)
             if st.button("🔙 EXIT ADMIN MODE"):
                 st.session_state.admin_pin_input = ""
-                st.query_params["reset"] = "true"
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-            st.markdown("---")
-            
-            st.markdown("#### 🌴 Skip This Person (Active Holiday Matrix)")
-            selected_holidays = []
-            cols = st.columns(len(all_commuters))
-            for idx, person in enumerate(all_commuters):
-                with cols[idx]:
-                    is_away = st.checkbox(person, value=(person in st.session_state.holiday_list))
-                    if is_away:
-                        selected_holidays.append(person)
-            
-            if sorted(selected_holidays) != sorted(st.session_state.holiday_list):
-                st.session_state.holiday_list = selected_holidays
-                st.rerun()
-                
-            st.markdown("---")
-            st.markdown("#### 🗑️ Delete Ledger Records")
-            delete_date = st.selectbox("Select Date to Delete completely:", sorted(df_existing["Date"].unique(), reverse=True))
-            
-            st.markdown('<div class="admin-btn">', unsafe_allow_html=True)
-            if st.button("🗑️ PERMANENTLY DELETE CHOSEN DATE"):
-                df_final = df_existing
+                st.query
