@@ -24,6 +24,7 @@ st.markdown("""
 
 st.markdown('<p class="mobile-title">💰 Settlement Panel</p>', unsafe_allow_html=True)
 
+# FIXED: Exact matching names spelling variant string from your log database file
 commuters = ["Manish Tripathi", "Abhishek Chaudhary", "Dk Maurya", "Ajay Nair", "Ankit Kapoor"]
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
@@ -35,8 +36,7 @@ if not TOKEN or not REPO:
     st.info("💡 Awaiting cloud connection keys. Please paste GITHUB_TOKEN inside your Streamlit Dashboard Secrets panel configuration.")
     st.stop()
 
-# --- FIXED: LIVE FRESH FETCH (NO CACHING AT ALL) ---
-# Adding a timestamp query bypasses GitHub's and Streamlit's old data caches instantly
+# Force live fetch bypass
 live_url = f"{URL}?timestamp={datetime.datetime.now().timestamp()}"
 r = requests.get(live_url, headers=HEADERS)
 
