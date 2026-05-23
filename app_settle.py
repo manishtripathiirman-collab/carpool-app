@@ -4,6 +4,7 @@ import datetime
 import requests
 import base64
 import io
+import urllib.parse
 
 st.set_page_config(page_title="MG Payout Engine", page_icon="💰", layout="centered")
 
@@ -18,6 +19,25 @@ st.markdown("""
     .badge-payout { background-color: rgba(244, 63, 94, 0.15); color: #FB7185; padding: 6px 14px; border-radius: 10px; font-size: 18px; font-weight: 800; float: right; }
     .mobile-title { font-family: sans-serif; font-size: 26px !important; font-weight: 800; color: #FFFFFF; }
     label, p, span { color: #CBD5E1 !important; }
+    
+    /* WhatsApp Button Styling */
+    .whatsapp-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #25D366 !important;
+        color: white !important;
+        font-weight: 700;
+        font-size: 16px;
+        text-decoration: none;
+        padding: 14px;
+        border-radius: 12px;
+        width: 100%;
+        text-align: center;
+        margin-top: 10px;
+        box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+    }
+    .whatsapp-btn:hover { background-color: #20BA5A !important; text-decoration: none; color: white !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -34,7 +54,6 @@ if not TOKEN or not REPO:
     st.info("💡 Awaiting cloud connection keys inside secrets panel.")
     st.stop()
 
-# Force live fetch to clear Streamlit internal cache frames
 live_url = f"{URL}?timestamp={datetime.datetime.now().timestamp()}"
 r = requests.get(live_url, headers=HEADERS)
 
@@ -50,10 +69,9 @@ if r.status_code == 200:
         
     filtered_df = df[(df['Clean_Date'] >= start_date) & (df['Clean_Date'] <= end_date)]
     
-    with st.expander(f"📱 View Logged Travel History ({len(filtered_df)} Days)", expanded=True):
+    with st.expander(f"📱 View Logged Travel History ({len(filtered_df)} Days)", expanded=False):
         st.dataframe(filtered_df.sort_values(by="Clean_Date", ascending=False), use_container_width=True, hide_index=True)
         
-    # Matrix tracker
     ledger_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
     
     for _, row in filtered_df.iterrows():
@@ -71,7 +89,6 @@ if r.status_code == 200:
             if p in commuters and p != driver_matched:
                 ledger_debts[p][driver_matched] += 150.0
 
-    # Cross pairwise netting calculation logic loop
     settlements = []
     for i in range(len(commuters)):
         for j in range(i + 1, len(commuters)):
@@ -96,14 +113,30 @@ if r.status_code == 200:
                 <div style="font-size:13px; color:#94A3B8; margin-top:4px;">Owes cash directly to <b>{s['To']}</b></div>
             </div>
             """, unsafe_allow_html=True)
+        
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("🟢 **Copy for WhatsApp Group Chat:**")
-        whatsapp_text = f"*🚗 Carpool Settlement Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
+        
+        # --- GENERATE THE WHATSAPP MESSAGE TEXT ---
+        whatsapp_text = f"🚗 *Carpool Settlement Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
         whatsapp_text += "--------------------------------------\n"
         for s in settlements: 
             whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
-        whatsapp_text += "--------------------------------------\n"
-        st.code(whatsapp_text, language="text")
+        whatsapp_text += "--------------------------------------"
+        
+        # URL encode the text safely so spaces/emojis pass smoothly to WhatsApp
+        encoded_text = urllib.parse.quote(whatsapp_text)
+        whatsapp_url = f"https://wa.me/?text={encoded_text}"
+        
+        # --- NEW: ONE-CLICK NATIVE WHATSAPP ACTION BUTTON ---
+        st.markdown(f"""
+            <a href="{whatsapp_url}" target="_blank" class="whatsapp-btn">
+                💬 SHARE DIRECT TO WHATSAPP GROUP
+            </a>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        with st.expander("📋 View Raw Code Copy Alternative"):
+            st.code(whatsapp_text, language="text")
     else:
         st.success("🎉 All accounts match perfectly across this window!")
 else:
