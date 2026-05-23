@@ -19,6 +19,19 @@ st.markdown("""
     div.stButton > button { width: 100%; background-color: #6366F1 !important; color: white !important; border-radius: 12px; font-weight: 700; padding: 12px; }
     .admin-btn > div.stButton > button { background-color: #EF4444 !important; }
     .lock-banner { background-color: rgba(239, 68, 68, 0.15); border: 1px solid #EF4444; padding: 25px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
+    
+    /* Custom Siren Button */
+    .siren-trigger-btn {
+        background-color: #EF4444 !important;
+        color: white !important;
+        border: none;
+        padding: 10px 20px;
+        font-weight: 700;
+        border-radius: 8px;
+        margin-top: 15px;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4);
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -107,22 +120,27 @@ if not df_existing.empty:
 else:
     st.info("No logs found in the cloud database file yet.")
 
-# --- RENDER INTERFACE OR AUDIO LOCKOUT BANNER WITH SIREN ---
+# --- RENDER INTERFACE OR AUDIO LOCKOUT BANNER WITH INTERACTIVE AUDIO ---
 st.markdown("<br>", unsafe_allow_html=True)
 
 if date_exists and not is_admin_authenticated:
-    # High-quality universal police/emergency siren wave file
     audio_url = "https://actions.google.com/sounds/v1/alarms/emergency_siren.ogg"
     
+    # Using JavaScript inside HTML to trigger audio instantly via a user click bypass
     st.markdown(f"""
         <div class="lock-banner">
             <span style="font-size: 38px;">🚨</span>
             <h3 style="color: #EF4444; margin-top: 10px; font-weight:800; font-family:sans-serif;">Abe Loudu dubara kyun kar raha!</h3>
             <p style="margin: 10px 0 0 0; color: #F8FAFC; font-size: 17px; font-weight: 600;">Ab mantri karega Sahi.</p>
             <p style="margin: 15px 0 0 0; color: #94A3B8; font-size: 13px;">[Data Locked for {travel_date.strftime('%d %b %Y')}]</p>
-            <audio autoplay style="display:none;">
+            
+            <audio id="sirenAudio">
                 <source src="{audio_url}" type="audio/ogg">
             </audio>
+            
+            <button class="siren-trigger-btn" onclick="document.getElementById('sirenAudio').play()">
+                📢 PLAY SIREN ALARM
+            </button>
         </div>
     """, unsafe_allow_html=True)
 else:
