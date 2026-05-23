@@ -8,102 +8,123 @@ import io
 st.set_page_config(
     page_title="MG Ledger", 
     page_icon="🚗", 
-    layout="centered", # Dynamic narrowing for mobile viewports
+    layout="centered", 
     initial_sidebar_state="collapsed"
 )
 
-# --- ADVANCED MOBILE UI STYLING SYSTEM ---
+# --- NEON-DARK AUTOMOTIVE PREMIUM DESIGN SYSTEM ---
 st.markdown("""
     <style>
-    /* Premium Minimalist Travel Background */
+    /* Deep Dark Moody Highway Background */
     .stApp {
-        background-image: linear-gradient(rgba(244, 246, 249, 0.92), rgba(244, 246, 249, 0.92)), 
-                          url('https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=800&q=80');
+        background-image: linear-gradient(rgba(15, 23, 42, 0.90), rgba(15, 23, 42, 0.95)), 
+                          url('https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=800&q=80');
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
     }
     
-    /* Native Smartphone App Cards */
+    /* Premium Glassmorphism Dark Cards with Cyber Neon Borders */
+    div.element-container:has(div.stTextArea), div.element-container:has(div.stDateInput), .stExpander {
+        background: rgba(30, 41, 59, 0.70) !important;
+        backdrop-filter: blur(12px);
+        border-radius: 16px !important;
+        padding: 12px;
+        margin-bottom: 15px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        border: 1px solid rgba(99, 102, 241, 0.25) !important; /* Subtle Neon Indigo border */
+    }
+    
+    /* Native Smartphone App Cards for Settlements */
     .mobile-card {
-        background: #ffffff;
+        background: rgba(30, 41, 59, 0.85);
+        backdrop-filter: blur(10px);
         border-radius: 16px;
         padding: 16px;
         margin-bottom: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-        border: 1px solid #E5E7EB;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(244, 63, 94, 0.25); /* Glowing Rose Border */
     }
     
-    /* WhatsApp Copy Panel */
+    /* High-Contrast Cyber Badges */
+    .badge-payout {
+        background-color: rgba(244, 63, 94, 0.15);
+        color: #FB7185;
+        padding: 6px 14px;
+        border-radius: 10px;
+        font-size: 18px;
+        font-weight: 800;
+        float: right;
+        border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+    
+    /* Luminous WhatsApp Integration Box */
     .whatsapp-container {
-        background: #E8F7F0 !important;
+        background: rgba(16, 185, 129, 0.1) !important;
         border-radius: 16px;
         padding: 16px;
-        border-left: 6px solid #25D366;
-        box-shadow: 0 4px 12px rgba(37, 211, 102, 0.08);
+        border: 1px solid rgba(16, 185, 129, 0.3);
     }
     
-    /* Elegant Micro Badges */
-    .badge-driver {
-        background-color: #EFF6FF;
-        color: #1E40AF;
-        padding: 4px 10px;
-        border-radius: 9999px;
-        font-size: 12px;
-        font-weight: 600;
-        display: inline-block;
-    }
-    .badge-payout {
-        background-color: #FEF2F2;
-        color: #991B1B;
-        padding: 6px 12px;
-        border-radius: 8px;
-        font-size: 16px;
-        font-weight: 700;
-        float: right;
-    }
-    
-    /* Clean Mobile Text Utilities */
+    /* Vibrant Electric Typography */
     .mobile-title {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        font-size: 26px !important;
+        font-size: 28px !important;
         font-weight: 800;
-        color: #111827;
+        color: #FFFFFF;
+        text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
         letter-spacing: -0.5px;
     }
+    
+    .section-header {
+        color: #E2E8F0 !important;
+        font-size: 16px !important;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    
     .card-name {
         font-size: 16px;
         font-weight: 700;
-        color: #1F2937;
+        color: #F8FAFC;
     }
     .card-sub {
         font-size: 13px;
-        color: #6B7280;
-        margin-top: 2px;
+        color: #94A3B8;
+        margin-top: 4px;
+    }
+    
+    /* Override standard input text colors to fit dark theme */
+    label, p, span {
+        color: #CBD5E1 !important;
+    }
+    textarea {
+        color: #FFFFFF !important;
+        background-color: rgba(15, 23, 42, 0.6) !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # --- MOBILE APP HEADER ---
 st.markdown('<p class="mobile-title">🚗 Mission Gurgaon</p>', unsafe_allow_html=True)
-st.caption("Tap, paste, and instantly resolve pairwise group ride expenses.")
+st.caption("A premium cyberpunk-styled carpool engine for direct pairwise netting.")
 
 # --- INITIALIZE GROUP PROFILES ---
 if "commuters" not in st.session_state:
     st.session_state.commuters = ["Manish Tripathi", "Abhishek Chaudhary", "Dk Maurya", "Ajay Nair", "Ankit Kapoor"]
 
 # --- STEP 1: MOBILE PASTE PANEL ---
-st.markdown("### 📋 Step 1: Import Sheets Log")
+st.markdown('<p class="section-header">📋 STEP 1: IMPORT SHEET DATA</p>', unsafe_allow_html=True)
 pasted_text = st.text_area(
     "Tap here and paste data rows from your Google Sheets mobile app:", 
     height=120, 
-    placeholder="Tap to paste spreadsheet rows...",
+    placeholder="Tap to paste spreadsheet rows here...",
     label_visibility="collapsed"
 )
 
 if pasted_text.strip():
     try:
-        # Load and cleanly digest strings
+        # Process the pasted spreadsheet chunk
         df = pd.read_csv(io.StringIO(pasted_text), sep="\t")
         df.columns = [str(c).strip().lower() for c in df.columns]
         
@@ -113,14 +134,14 @@ if pasted_text.strip():
         half_col = next((c for c in df.columns if 'half' in c or 'am' in c or 'pm' in c), None)
         
         if not date_col or not driver_col:
-            st.error("⚠️ Header Missing: Please make sure you copy the top title header row from your sheet.")
+            st.error("⚠️ Header Missing: Please remember to copy the top title row from your sheet.")
             st.stop()
             
         df['Clean_Date'] = pd.to_datetime(df[date_col], errors='coerce').dt.date
         df = df.dropna(subset=['Clean_Date'])
         
         # --- STEP 2: MOBILE DATE SELECTION SLIDERS ---
-        st.markdown("### 🗓️ Step 2: Set Billing Period")
+        st.markdown('<p class="section-header">🗓️ STEP 2: SET BILLING TIMEFRAME</p>', unsafe_allow_html=True)
         min_date = min(df['Clean_Date'])
         max_date = max(df['Clean_Date'])
         
@@ -132,11 +153,10 @@ if pasted_text.strip():
             
         filtered_df = df[(df['Clean_Date'] >= start_date) & (df['Clean_Date'] <= end_date)]
         
-        # Collapse massive overview matrices behind a clean mobile drawer widget
-        with st.expander(f"📱 View Verified Travel Log ({len(filtered_df)} Days)"):
+        with st.expander(f"📱 View Parsed Roster Rows ({len(filtered_df)} Days)"):
             st.dataframe(filtered_df, use_container_width=True, hide_index=True)
         
-        # --- CALCULATION ENGINE ---
+        # --- LOGIC CALCULATION ENGINE ---
         raw_debts = defaultdict(lambda: defaultdict(float))
         
         for _, row in filtered_df.iterrows():
@@ -167,7 +187,7 @@ if pasted_text.strip():
             for p in full_passengers: raw_debts[p][driver] += 300.0
             for p in half_passengers: raw_debts[p][driver] += 150.0
 
-        # Netting Engine processing 
+        # Run netting mechanics
         all_members = st.session_state.commuters
         settlements = []
         for i in range(len(all_members)):
@@ -180,39 +200,4 @@ if pasted_text.strip():
                     if net > 0: settlements.append({"From": p1, "To": p2, "Amount": net})
                 elif p2_owes > p1_owes:
                     net = p2_owes - p1_owes
-                    if net > 0: settlements.append({"From": p2, "To": p1, "Amount": net})
-
-        # --- STEP 3: NATIVE MOBILE CARD RENDER ---
-        st.markdown("### 💰 Step 3: Final Pair-Wise Transfers")
-        
-        if settlements:
-            # Render individual cards built for phone viewports
-            for s in settlements:
-                st.markdown(f"""
-                <div class="mobile-card">
-                    <span class="badge-payout">₹{s['Amount']:.0f}</span>
-                    <div class="card-name">👉 {s['From']}</div>
-                    <div class="card-sub">Owes money directly to <b>{s['To']}</b></div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-            # Render WhatsApp block below
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("**📲 Copy Ready for WhatsApp Group Chat**")
-            
-            whatsapp_text = f"*🚗 Carpool Settlement Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
-            whatsapp_text += "--------------------------------------\n"
-            for s in settlements:
-                whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
-            whatsapp_text += "--------------------------------------\n"
-            whatsapp_text += "💡 _Open link to compute custom dates._"
-            
-            st.code(whatsapp_text, language="text")
-        else:
-            st.success("🎉 Parity reached! All accounts match up perfectly across this window.")
-            
-    except Exception as e:
-        st.error(f"Error parsing rows. Double check your sheet's top header layout selection row. Details: {e}")
-else:
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.info("💡 Awaiting input logs. Open your Google Sheet app, copy your target row blocks, and paste them right into Step 1 above.")
+                    if net > 0: settlements.append({"From":
