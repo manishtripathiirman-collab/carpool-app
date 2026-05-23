@@ -18,7 +18,23 @@ st.markdown("""
     label, p, span { color: #CBD5E1 !important; }
     div.stButton > button { width: 100%; background-color: #6366F1 !important; color: white !important; border-radius: 12px; font-weight: 700; padding: 12px; }
     .admin-btn > div.stButton > button { background-color: #EF4444 !important; }
-    .lock-banner { background-color: rgba(239, 68, 68, 0.15); border: 1px solid #EF4444; padding: 25px; border-radius: 12px; text-align: center; margin-bottom: 10px; }
+    
+    /* Dynamic Warning Card with Flash Animation */
+    .lock-banner { 
+        background-color: rgba(239, 68, 68, 0.2); 
+        border: 2px solid #EF4444; 
+        padding: 25px; 
+        border-radius: 16px; 
+        text-align: center; 
+        margin-bottom: 20px;
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+        animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+        0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+        50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.7); border-color: #F87171; }
+        100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -111,18 +127,18 @@ else:
 st.markdown("<br>", unsafe_allow_html=True)
 
 if date_exists and not is_admin_authenticated:
-    # Pure clean HTML block without any broken source codes
+    # Trigger a native Streamlit warning banner style exception block
+    st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
+    
+    # Render your clear customized message box with a glowing pulse animation effect
     st.markdown(f"""
         <div class="lock-banner">
-            <span style="font-size: 38px;">🚨</span>
-            <h3 style="color: #EF4444; margin-top: 10px; font-weight:800; font-family:sans-serif; margin-bottom: 5px;">Abe Loudu dubara kyun kar raha!</h3>
-            <p style="margin: 5px 0 0 0; color: #F8FAFC; font-size: 17px; font-weight: 600;">Ab mantri karega Sahi.</p>
-            <p style="margin: 12px 0 15px 0; color: #94A3B8; font-size: 13px;">[Data Locked for {travel_date.strftime('%d %b %Y')}]</p>
+            <span style="font-size: 45px;">🛑</span>
+            <h2 style="color: #EF4444; margin-top: 10px; font-weight:900; font-family:sans-serif; letter-spacing: 0.5px;">Abe Loudu dubara kyun kar raha!</h2>
+            <h4 style="margin: 12px 0 0 0; color: #F8FAFC; font-weight: 700;">Ab mantri karega Sahi.</h4>
+            <p style="margin: 18px 0 0 0; color: #94A3B8; font-size: 13px; font-style: italic;">[Data entry locked for {travel_date.strftime('%d %b %Y')} - Enter Admin passcode below to override]</p>
         </div>
     """, unsafe_allow_html=True)
-    
-    # Native Streamlit audio block - completely bypasses code restriction filters
-    st.audio("https://actions.google.com/sounds/v1/alarms/emergency_siren.ogg", format="audio/ogg")
 else:
     if date_exists and is_admin_authenticated:
         st.warning(f"⚠️ Mode: Admin Override Active. Saving will overwrite the existing entry for {travel_date}.")
@@ -165,5 +181,7 @@ else:
             
         r_put = requests.put(URL, headers=HEADERS, json=payload)
         if r_put.status_code in [200, 201]:
+            # Native celebratory burst when a real log succeeds!
+            st.balloons()
             st.success(f"🎉 Trip successfully saved for {travel_date.strftime('%d %b')}!")
             st.rerun()
