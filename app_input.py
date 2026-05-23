@@ -26,69 +26,19 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] { background-color: rgba(30, 41, 59, 0.7) !important; border: 1px solid #334155 !important; border-radius: 8px 8px 0px 0px; padding: 10px 20px !important; color: #94A3B8 !important; }
     .stTabs [aria-selected="true"] { background-color: #6366F1 !important; color: white !important; border-color: #6366F1 !important; }
     
-    /* --- Neon Status Badge Styling --- */
-    .neon-badge {
-        display: inline-block;
-        padding: 5px 12px;
-        font-size: 11px;
-        font-weight: 800;
-        border-radius: 20px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 5px;
-    }
-    .badge-driver {
-        background-color: rgba(34, 197, 94, 0.15);
-        color: #4ADE80;
-        border: 1px solid rgba(34, 197, 94, 0.4);
-        animation: pulse-green 2s infinite alternate;
-    }
-    .badge-full {
-        background-color: rgba(56, 189, 248, 0.15);
-        color: #38BDF8;
-        border: 1px solid rgba(56, 189, 248, 0.4);
-        animation: pulse-blue 2s infinite alternate;
-    }
-    .badge-half {
-        background-color: rgba(251, 191, 36, 0.15);
-        color: #FBBF24;
-        border: 1px solid rgba(251, 191, 36, 0.4);
-        animation: pulse-amber 2s infinite alternate;
-    }
-    .badge-holiday {
-        background-color: rgba(168, 85, 247, 0.15);
-        color: #C084FC;
-        border: 1px solid rgba(168, 85, 247, 0.4);
-    }
+    .neon-badge { display: inline-block; padding: 5px 12px; font-size: 11px; font-weight: 800; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+    .badge-driver { background-color: rgba(34, 197, 94, 0.15); color: #4ADE80; border: 1px solid rgba(34, 197, 94, 0.4); animation: pulse-green 2s infinite alternate; }
+    .badge-full { background-color: rgba(56, 189, 248, 0.15); color: #38BDF8; border: 1px solid rgba(56, 189, 248, 0.4); animation: pulse-blue 2s infinite alternate; }
+    .badge-half { background-color: rgba(251, 191, 36, 0.15); color: #FBBF24; border: 1px solid rgba(251, 191, 36, 0.4); animation: pulse-amber 2s infinite alternate; }
+    .badge-holiday { background-color: rgba(168, 85, 247, 0.15); color: #C084FC; border: 1px solid rgba(168, 85, 247, 0.4); }
     
-    /* --- Glow Keyframe Animations --- */
-    @keyframes pulse-green {
-        0% { box-shadow: 0 0 4px rgba(34,197,94,0.2); }
-        100% { box-shadow: 0 0 12px rgba(34,197,94,0.6); border-color: #22C55E; }
-    }
-    @keyframes pulse-blue {
-        0% { box-shadow: 0 0 4px rgba(56,189,248,0.2); }
-        100% { box-shadow: 0 0 12px rgba(56,189,248,0.6); border-color: #38BDF8; }
-    }
-    @keyframes pulse-amber {
-        0% { box-shadow: 0 0 4px rgba(251,191,36,0.2); }
-        100% { box-shadow: 0 0 12px rgba(251,191,36,0.6); border-color: #FBBF24; }
-    }
+    @keyframes pulse-green { 0% { box-shadow: 0 0 4px rgba(34,197,94,0.2); } 100% { box-shadow: 0 0 12px rgba(34,197,94,0.6); border-color: #22C55E; } }
+    @keyframes pulse-blue { 0% { box-shadow: 0 0 4px rgba(56,189,248,0.2); } 100% { box-shadow: 0 0 12px rgba(56,189,248,0.6); border-color: #38BDF8; } }
+    @keyframes pulse-amber { 0% { box-shadow: 0 0 4px rgba(251,191,36,0.2); } 100% { box-shadow: 0 0 12px rgba(251,191,36,0.6); border-color: #FBBF24; } }
     
-    .lock-banner { 
-        background-color: rgba(239, 68, 68, 0.2); 
-        border: 2px solid #EF4444; 
-        padding: 25px; 
-        border-radius: 16px; 
-        text-align: center; 
-        margin-bottom: 20px;
-        animation: pulse-red 1.5s infinite;
-    }
-    @keyframes pulse-red {
-        0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
-        50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.7); border-color: #F87171; }
-        100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
-    }
+    .lock-banner { background-color: rgba(239, 68, 68, 0.2); border: 2px solid #EF4444; padding: 25px; border-radius: 16px; text-align: center; margin-bottom: 20px; animation: pulse-red 1.5s infinite; }
+    @keyframes pulse-red { 0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); } 50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.7); border-color: #F87171; } 100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); } }
+    .future-banner { background-color: rgba(234, 179, 8, 0.15); border: 2px solid #EAB308; padding: 25px; border-radius: 16px; text-align: center; margin-bottom: 20px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -102,6 +52,12 @@ if "saved_message" not in st.session_state: st.session_state.saved_message = ""
 if "last_processed_date" not in st.session_state: st.session_state.last_processed_date = None
 if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
+
+# --- DYNAMIC IST TIME CALCULATOR ---
+# Forces the app to live precisely in India Standard Time, ignoring US cloud servers
+utc_now = datetime.datetime.utcnow()
+ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
+today_date_ist = ist_now.date()
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
@@ -127,44 +83,54 @@ tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
 with tab_trip:
     if "reset" in st.query_params:
         st.query_params.clear()
-        travel_date = st.date_input("Date of Travel", datetime.date.today(), key="trip_date_reset")
+        travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_reset")
     else:
-        travel_date = st.date_input("Date of Travel", datetime.date.today(), key="trip_date_norm")
+        travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_norm")
 
     if st.session_state.last_processed_date != str(travel_date):
         st.session_state.disable_lock = False
         st.session_state.last_processed_date = str(travel_date)
 
-    today_date = datetime.date.today()
-    is_future_date = travel_date > today_date
+    is_future_date = travel_date > today_date_ist
     date_exists = str(travel_date) in df_existing["Date"].astype(str).values if not df_existing.empty else False
 
     if is_future_date:
         st.warning("⏳ FUTURE TRIPS NOT ALLOWED")
-        st.markdown('<div class="lock-banner"><h2>🔮 Ye kam bhi Loudu ka hi hai</h2></div>', unsafe_allow_html=True)
+        st.markdown('<div class="future-banner"><span style="font-size: 45px;">🔮</span><h2 style="color: #EAB308; margin-top: 10px; font-weight:800; font-family:sans-serif;">Ye kam bhi Loudu ka hi hai</h2><h4 style="color: #F8FAFC; font-weight: 700; margin-top: 5px;">You cannot log entries for future dates.</h4></div>', unsafe_allow_html=True)
+        st.markdown('<div class="back-btn">', unsafe_allow_html=True)
+        if st.button("🔙 GO BACK TO TODAY", key="future_back_btn"):
+            st.query_params["reset"] = "true"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
     elif st.session_state.just_saved:
         st.success(st.session_state.saved_message)
         st.session_state.just_saved = False
         time.sleep(2.0)
         st.rerun()
+
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
         st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
-        st.markdown(f'<div class="lock-banner"><span style="font-size: 45px;">🛑</span><h2 style="color: #EF4444; margin-top: 10px; font-weight:900;">Abe Loudu dubara kyun kar raha!</h2><h4 style="color: #F8FAFC; font-weight: 700;">Ab mantri karega Sahi.</h4></div>', unsafe_allow_html=True)
+        st.markdown(f"""
+            <div class="lock-banner">
+                <span style="font-size: 45px;">🛑</span>
+                <h2 style="color: #EF4444; margin-top: 10px; font-weight:900; font-family:sans-serif; letter-spacing: 0.5px;">Abe Loudu dubara kyun kar raha!</h2>
+                <h4 style="margin: 12px 0 0 0; color: #F8FAFC; font-weight: 700;">Ab mantri karega Sahi.</h4>
+            </div>
+        """, unsafe_allow_html=True)
         st.markdown('<div class="back-btn">', unsafe_allow_html=True)
         if st.button("🔙 GO BACK TO TODAY", key="lock_back_btn"):
             st.query_params["reset"] = "true"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
+
     else:
-        # Filter out passengers currently inside the Holiday Matrix tracker
         commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
         if not commuters: commuters = all_commuters
 
-        # --- LIVE STATUS TRACKING PREVIEW PANEL ---
         st.markdown("#### ⚡ Real-Time Status Preview")
         preview_cols = st.columns(len(all_commuters))
         
-        # Global temporary selections to build real-time responsive status badges
         t_driver = st.session_state.get("temp_driver", commuters[0])
         t_full = st.session_state.get("temp_full", [])
         t_half = st.session_state.get("temp_half", [])
@@ -185,12 +151,10 @@ with tab_trip:
         
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Dynamic Forms Input Section
         driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
         st.session_state.temp_driver = driver
         
         passenger_options = [c for c in commuters if c != driver]
-        
         full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
         st.session_state.temp_full = full_day
         
@@ -214,7 +178,7 @@ with tab_trip:
 # TAB 2: EXPENSE LOGGING
 with tab_expense:
     st.markdown("### 💰 Add Shared Expense")
-    exp_date = st.date_input("Date of Expense", datetime.date.today(), key="exp_date_picker")
+    exp_date = st.date_input("Date of Expense", today_date_ist, key="exp_date_picker")
     payer = st.selectbox("Who Paid the Bill?", all_commuters, key="exp_payer")
     amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=0.0, step=50.0)
     item_desc = st.text_input("What was this for?", placeholder="e.g., Office Lunch, Turf booking, Snacks")
@@ -260,7 +224,6 @@ with st.expander("🛠️ Admin Controls (Authorized Only)"):
         st.markdown('</div>', unsafe_allow_html=True)
         st.markdown("---")
         
-        # Holiday Management System (Triggers Purple Badge Live Preview)
         st.markdown("#### 🌴 Skip This Person (Active Holiday Matrix)")
         selected_holidays = []
         h_cols = st.columns(len(all_commuters))
