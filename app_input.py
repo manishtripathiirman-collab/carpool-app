@@ -19,7 +19,6 @@ st.markdown("""
     div.stButton > button { width: 100%; background-color: #6366F1 !important; color: white !important; border-radius: 12px; font-weight: 700; padding: 12px; }
     .admin-btn > div.stButton > button { background-color: #EF4444 !important; }
     
-    /* Dynamic Warning Card with Flash Animation */
     .lock-banner { 
         background-color: rgba(239, 68, 68, 0.2); 
         border: 2px solid #EF4444; 
@@ -27,7 +26,6 @@ st.markdown("""
         border-radius: 16px; 
         text-align: center; 
         margin-bottom: 20px;
-        box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
         animation: pulse 1.5s infinite;
     }
     @keyframes pulse {
@@ -127,10 +125,7 @@ else:
 st.markdown("<br>", unsafe_allow_html=True)
 
 if date_exists and not is_admin_authenticated:
-    # Trigger a native Streamlit warning banner style exception block
     st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
-    
-    # Render your clear customized message box with a glowing pulse animation effect
     st.markdown(f"""
         <div class="lock-banner">
             <span style="font-size: 45px;">🛑</span>
@@ -180,8 +175,4 @@ else:
         if sha: payload["sha"] = sha
             
         r_put = requests.put(URL, headers=HEADERS, json=payload)
-        if r_put.status_code in [200, 201]:
-            # Native celebratory burst when a real log succeeds!
-            st.balloons()
-            st.success(f"🎉 Trip successfully saved for {travel_date.strftime('%d %b')}!")
-            st.rerun()
+        if r_put.status_code in
