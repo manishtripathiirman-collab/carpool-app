@@ -8,6 +8,7 @@ import time
 
 st.set_page_config(page_title="MG Logger", page_icon="📝", layout="centered")
 
+# Visual Engine: Neon Style Sheet Injection
 st.markdown("""
     <style>
     .stApp {
@@ -25,6 +26,55 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] { background-color: rgba(30, 41, 59, 0.7) !important; border: 1px solid #334155 !important; border-radius: 8px 8px 0px 0px; padding: 10px 20px !important; color: #94A3B8 !important; }
     .stTabs [aria-selected="true"] { background-color: #6366F1 !important; color: white !important; border-color: #6366F1 !important; }
     
+    /* --- Neon Status Badge Styling --- */
+    .neon-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        font-size: 11px;
+        font-weight: 800;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 5px;
+    }
+    .badge-driver {
+        background-color: rgba(34, 197, 94, 0.15);
+        color: #4ADE80;
+        border: 1px solid rgba(34, 197, 94, 0.4);
+        animation: pulse-green 2s infinite alternate;
+    }
+    .badge-full {
+        background-color: rgba(56, 189, 248, 0.15);
+        color: #38BDF8;
+        border: 1px solid rgba(56, 189, 248, 0.4);
+        animation: pulse-blue 2s infinite alternate;
+    }
+    .badge-half {
+        background-color: rgba(251, 191, 36, 0.15);
+        color: #FBBF24;
+        border: 1px solid rgba(251, 191, 36, 0.4);
+        animation: pulse-amber 2s infinite alternate;
+    }
+    .badge-holiday {
+        background-color: rgba(168, 85, 247, 0.15);
+        color: #C084FC;
+        border: 1px solid rgba(168, 85, 247, 0.4);
+    }
+    
+    /* --- Glow Keyframe Animations --- */
+    @keyframes pulse-green {
+        0% { box-shadow: 0 0 4px rgba(34,197,94,0.2); }
+        100% { box-shadow: 0 0 12px rgba(34,197,94,0.6); border-color: #22C55E; }
+    }
+    @keyframes pulse-blue {
+        0% { box-shadow: 0 0 4px rgba(56,189,248,0.2); }
+        100% { box-shadow: 0 0 12px rgba(56,189,248,0.6); border-color: #38BDF8; }
+    }
+    @keyframes pulse-amber {
+        0% { box-shadow: 0 0 4px rgba(251,191,36,0.2); }
+        100% { box-shadow: 0 0 12px rgba(251,191,36,0.6); border-color: #FBBF24; }
+    }
+    
     .lock-banner { 
         background-color: rgba(239, 68, 68, 0.2); 
         border: 2px solid #EF4444; 
@@ -32,17 +82,9 @@ st.markdown("""
         border-radius: 16px; 
         text-align: center; 
         margin-bottom: 20px;
-        animation: pulse 1.5s infinite;
+        animation: pulse-red 1.5s infinite;
     }
-    .future-banner {
-        background-color: rgba(234, 179, 8, 0.15); 
-        border: 2px solid #EAB308; 
-        padding: 25px; 
-        border-radius: 16px; 
-        text-align: center; 
-        margin-bottom: 20px;
-    }
-    @keyframes pulse {
+    @keyframes pulse-red {
         0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
         50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.7); border-color: #F87171; }
         100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
@@ -99,41 +141,61 @@ with tab_trip:
 
     if is_future_date:
         st.warning("⏳ FUTURE TRIPS NOT ALLOWED")
-        st.markdown('<div class="future-banner"><span style="font-size: 45px;">🔮</span><h2 style="color: #EAB308; margin-top: 10px; font-weight:800; font-family:sans-serif;">Ye kam bhi Loudu ka hi hai</h2><h4 style="color: #F8FAFC; font-weight: 700; margin-top: 5px;">You cannot log entries for future dates.</h4></div>', unsafe_allow_html=True)
-        st.markdown('<div class="back-btn">', unsafe_allow_html=True)
-        if st.button("🔙 GO BACK TO TODAY", key="future_back_btn"):
-            st.query_params["reset"] = "true"
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
+        st.markdown('<div class="lock-banner"><h2>🔮 Ye kam bhi Loudu ka hi hai</h2></div>', unsafe_allow_html=True)
     elif st.session_state.just_saved:
         st.success(st.session_state.saved_message)
         st.session_state.just_saved = False
         time.sleep(2.0)
         st.rerun()
-
-    # FIXED: Brought back your custom animated HTML roast banner block directly here!
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
         st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
-        st.markdown(f"""
-            <div class="lock-banner">
-                <span style="font-size: 45px;">🛑</span>
-                <h2 style="color: #EF4444; margin-top: 10px; font-weight:900; font-family:sans-serif; letter-spacing: 0.5px;">Abe Loudu dubara kyun kar raha!</h2>
-                <h4 style="margin: 12px 0 0 0; color: #F8FAFC; font-weight: 700;">Ab mantri karega Sahi.</h4>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="lock-banner"><span style="font-size: 45px;">🛑</span><h2 style="color: #EF4444; margin-top: 10px; font-weight:900;">Abe Loudu dubara kyun kar raha!</h2><h4 style="color: #F8FAFC; font-weight: 700;">Ab mantri karega Sahi.</h4></div>', unsafe_allow_html=True)
         st.markdown('<div class="back-btn">', unsafe_allow_html=True)
         if st.button("🔙 GO BACK TO TODAY", key="lock_back_btn"):
             st.query_params["reset"] = "true"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
-
     else:
+        # Filter out passengers currently inside the Holiday Matrix tracker
         commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
-        driver = st.selectbox("Designated Driver", commuters)
+        if not commuters: commuters = all_commuters
+
+        # --- LIVE STATUS TRACKING PREVIEW PANEL ---
+        st.markdown("#### ⚡ Real-Time Status Preview")
+        preview_cols = st.columns(len(all_commuters))
+        
+        # Global temporary selections to build real-time responsive status badges
+        t_driver = st.session_state.get("temp_driver", commuters[0])
+        t_full = st.session_state.get("temp_full", [])
+        t_half = st.session_state.get("temp_half", [])
+
+        for idx, person in enumerate(all_commuters):
+            with preview_cols[idx]:
+                st.markdown(f"<div style='text-align: center; font-weight: 700; margin-bottom: 2px;'>{person}</div>", unsafe_allow_html=True)
+                if person in st.session_state.holiday_list:
+                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-holiday">🌴 Leave</span></div>', unsafe_allow_html=True)
+                elif person == t_driver:
+                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-driver">👑 Wheel</span></div>', unsafe_allow_html=True)
+                elif person in t_full:
+                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-full">🚗 Full</span></div>', unsafe_allow_html=True)
+                elif person in t_half:
+                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-half">🌤️ Half</span></div>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<div style="text-align:center; color:#475569; font-size:11px; margin-top:5px;">---</div>', unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # Dynamic Forms Input Section
+        driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
+        st.session_state.temp_driver = driver
+        
         passenger_options = [c for c in commuters if c != driver]
-        full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options)
-        half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day])
+        
+        full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
+        st.session_state.temp_full = full_day
+        
+        half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
+        st.session_state.temp_half = half_day
 
         if st.button("💾 SAVE TRIP TO LEDGER"):
             full_day_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
@@ -145,7 +207,7 @@ with tab_trip:
             if r_exist.status_code == 200: payload["sha"] = r_exist.json()["sha"]
             if requests.put(TRIP_URL, headers=HEADERS, json=payload).status_code in [200, 201]:
                 st.session_state.just_saved = True
-                st.session_state.saved_message = f"🎉 Trip saved for driver {driver}!"
+                st.session_state.saved_message = f"🎉 Trip saved successfully!"
                 st.session_state.disable_lock = True
                 st.rerun()
 
@@ -198,6 +260,19 @@ with st.expander("🛠️ Admin Controls (Authorized Only)"):
         st.markdown('</div>', unsafe_allow_html=True)
         st.markdown("---")
         
+        # Holiday Management System (Triggers Purple Badge Live Preview)
+        st.markdown("#### 🌴 Skip This Person (Active Holiday Matrix)")
+        selected_holidays = []
+        h_cols = st.columns(len(all_commuters))
+        for idx, person in enumerate(all_commuters):
+            with h_cols[idx]:
+                if st.checkbox(person, value=(person in st.session_state.holiday_list), key=f"holiday_{person}"):
+                    selected_holidays.append(person)
+        if sorted(selected_holidays) != sorted(st.session_state.holiday_list):
+            st.session_state.holiday_list = selected_holidays
+            st.rerun()
+            
+        st.markdown("---")
         if not df_existing.empty:
             st.markdown("#### 🚗 Delete Travel Records")
             delete_date = st.selectbox("Select Travel Date to Delete completely:", sorted(df_existing["Date"].unique(), reverse=True))
@@ -214,7 +289,6 @@ with st.expander("🛠️ Admin Controls (Authorized Only)"):
             st.markdown('</div>', unsafe_allow_html=True)
             
         st.markdown("---")
-        
         if not df_exp_existing.empty:
             st.markdown("#### 🍔 Delete / Manage Split Expenses")
             df_exp_existing['Display_Label'] = df_exp_existing['Date'].astype(str) + " | " + df_exp_existing['Paid By'] + " | ₹" + df_exp_existing['Total Amount'].astype(str) + " (" + df_exp_existing['Description'] + ")"
@@ -232,5 +306,3 @@ with st.expander("🛠️ Admin Controls (Authorized Only)"):
                     time.sleep(1.5)
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.info("Expense database file ledger is completely empty.")
