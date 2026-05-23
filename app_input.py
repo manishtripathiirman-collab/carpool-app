@@ -61,8 +61,8 @@ if "last_processed_date" not in st.session_state:
     st.session_state.last_processed_date = None
 if "disable_lock" not in st.session_state:
     st.session_state.disable_lock = False
-if "admin_pin_input" not in st.session_state:
-    st.session_state.admin_pin_input = ""
+if "is_admin" not in st.session_state:
+    st.session_state.is_admin = False
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
@@ -95,10 +95,8 @@ today_date = datetime.date.today()
 is_future_date = travel_date > today_date
 
 date_exists = False
-if not df_existing.empty and not is_future_date:
+if not df_existing.empty heart not is_future_date:
     date_exists = str(travel_date) in df_existing["Date"].astype(str).values
-
-is_admin_authenticated = False
 
 # --- EXPANDER CONTROLS AT THE BOTTOM ---
 st.markdown("---")
@@ -110,15 +108,20 @@ if not df_existing.empty:
 
     st.markdown("<br>", unsafe_allow_html=True)
     with st.expander("🛠️ Admin Controls (Authorized Only)"):
-        admin_pin = st.text_input("Enter Admin PIN to Unlock / Delete", type="password", value=st.session_state.admin_pin_input, key="admin_pin_field")
+        # If not authenticated session-wise, render verification pin field
+        if not st.session_state.is_admin:
+            admin_pin = st.text_input("Enter Admin PIN to Unlock / Delete", type="password", key="pin_input_field")
+            if admin_pin == "9999":
+                st.session_state.is_admin = True
+                st.rerun()
         
-        if admin_pin == "9999":
+        # If session-wise authentication evaluates true, display settings engine controls
+        if st.session_state.is_admin:
             st.success("Access Granted: Master Controls Unlocked")
-            is_admin_authenticated = True
             
             st.markdown('<div class="exit-admin-btn">', unsafe_allow_html=True)
             if st.button("🔙 EXIT ADMIN MODE"):
-                st.session_state.admin_pin_input = ""
+                st.session_state.is_admin = False
                 st.query_params["reset"] = "true"
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
@@ -166,7 +169,7 @@ else:
 # --- RENDER CONDITIONAL ENTRY INTERFACE BASED ON LOCK STATUS ---
 st.markdown("<br>", unsafe_allow_html=True)
 
-# GATE 1: Trap Future Selections Immediately with Updated Phrase
+# GATE 1: Trap Future Selections Immediately
 if is_future_date:
     st.warning("⏳ FUTURE TRIPS NOT ALLOWED")
     st.markdown(f"""
@@ -193,7 +196,7 @@ elif st.session_state.just_saved:
     st.rerun()
 
 # PRIORITY 2: Hard Lock Screen Check
-elif date_exists and not is_admin_authenticated and not st.session_state.disable_lock:
+elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
     st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
     st.markdown(f"""
         <div class="lock-banner">
@@ -212,7 +215,7 @@ elif date_exists and not is_admin_authenticated and not st.session_state.disable
 
 # PRIORITY 3: Standard Input Form
 else:
-    if date_exists and is_admin_authenticated:
+    if date_exists and st.session_state.is_admin:
         st.warning(f"⚠️ Mode: Admin Override Active. Saving will overwrite the existing entry for {travel_date}.")
         
     commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
@@ -241,7 +244,7 @@ else:
             if not df_check.empty:
                 backend_date_exists = str(travel_date) in df_check["Date"].astype(str).values
 
-        if backend_date_exists and not is_admin_authenticated:
+        if backend_date_exists and not st.session_state.is_admin:
             st.error("🛑 Overwrite Denied: This date was just logged by someone else!")
             st.stop()
             
