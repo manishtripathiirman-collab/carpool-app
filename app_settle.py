@@ -175,41 +175,4 @@ if not df_trips.empty:
             st.success("🎉 All accounts match perfectly across this window!")
 
     # 🌟 DASHBOARD GRAPHICS ENGINE 🌟
-    with tab_charts:
-        st.markdown("### 📊 Pool Expense Analytics")
-        
-        total_trips = len(df_trips)
-        approx_savings = total_trips * 4 * 250 
-        
-        m_col1, m_col2 = st.columns(2)
-        with m_col1:
-            st.metric(label="Total Trips Run", value=f"{total_trips} Days")
-        with m_col2:
-            st.metric(label="Est. Group Savings", value=f"₹{approx_savings:,}")
-            
-        st.markdown("---")
-        
-        # Chart 1: Driver Frequency
-        st.markdown("#### 🚘 Driver Frequency Leaderboard")
-        driver_counts = df_trips['Driver'].value_counts()
-        driver_chart_data = pd.DataFrame(0, index=commuters, columns=['Trips Driven'])
-        for comm in commuters:
-            if comm in driver_counts.index:
-                driver_chart_data.loc[comm, 'Trips Driven'] = driver_counts[comm]
-        st.bar_chart(driver_chart_data)
-        
-        # Chart 2: Cumulative Expense Matrix Contribution
-        st.markdown("#### 💸 Gross Passenger Spending (Owed to Pool)")
-        passenger_spending = {c: 0.0 for c in commuters}
-        
-        for _, row in df_trips.iterrows():
-            dr = str(row['Driver']).strip().title()
-            full_p = [p.strip().title() for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
-            half_p = [p.strip().title() for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
-            
-            for p in full_p:
-                if p in passenger_spending and p != dr: passenger_spending[p] += 300.0
-            for p in half_p:
-                if p in passenger_spending and p != dr: passenger_spending[p] += 150.0
-                
-        spending_df = pd.DataFrame.from_dict(passenger_spending,
+    with tab
