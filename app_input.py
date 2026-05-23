@@ -1,11 +1,12 @@
 import streamlit as st
 import datetime
 import pandas as pd
+import requests
+import base64
+import io
 
-# --- MOBILE WINDOW CONFIGURATION ---
 st.set_page_config(page_title="MG Logger", page_icon="📝", layout="centered")
 
-# --- AMBIENT DARK AUTOMOTIVE THEME ---
 st.markdown("""
     <style>
     .stApp {
@@ -13,73 +14,72 @@ st.markdown("""
                           url('https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=800&q=80');
         background-size: cover; background-position: center; background-attachment: fixed;
     }
-    .mobile-title {
-        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-        font-size: 26px !important; font-weight: 800; color: #FFFFFF;
-        text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
-    }
+    .mobile-title { font-family: sans-serif; font-size: 26px !important; font-weight: 800; color: #FFFFFF; }
     label, p, span { color: #CBD5E1 !important; }
-    div.stButton > button { 
-        width: 100%; background-color: #6366F1 !important; 
-        color: white !important; border-radius: 12px; font-weight: 700; padding: 12px;
-        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-    }
+    div.stButton > button { width: 100%; background-color: #6366F1 !important; color: white !important; border-radius: 12px; font-weight: 700; padding: 12px; }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<p class="mobile-title">📝 Log Daily Commute</p>', unsafe_allow_html=True)
-st.caption("Select today's travel details to update the permanent group database.")
 
-# --- CORE MEMBERS ---
 commuters = ["Manish Tripathi", "Abhishek Chaudhary", "Dk Maurya", "Ajay Nair", "Ankit Kapoor"]
 
-# --- LOCAL DATABASE FILE SETUP ---
-# To keep things incredibly simple and bypass external connection issues online, 
-# this app will save your entries to a shared, permanent file right inside your workspace.
-DATA_FILE = "carpool_logs.csv"
+# API configuration helpers
+TOKEN = st.secrets.get("GITHUB_TOKEN", "")
+REPO = st.secrets.get("GITHUB_REPO", "")
+URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
+HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json"}
 
-# Load existing data if it exists so we don't lose history when the app restarts
-if "trip_history" not in st.session_state:
-    if pd.io.common.file_exists(DATA_FILE):
-        st.session_state.trip_history = pd.read_csv(DATA_FILE).to_dict(orient="records")
-    else:
-        st.session_state.trip_history = []
+# Fetch shared file from GitHub Repo Cloud Storage
+@st.cache_data(ttl=5)
+def load_global_csv():
+    if not TOKEN or not REPO: return pd.DataFrame()
+    r = requests.get(URL, headers=HEADERS)
+    if r.status_code == 200:
+        content = base64.b64decode(r.json()["content"]).decode("utf-8")
+        return pd.read_csv(io.StringIO(content))
+    return pd.DataFrame()
 
-# --- SMART INPUT FIELDS ---
+df_existing = load_global_csv()
+
 travel_date = st.date_input("Date of Travel", datetime.date.today())
 driver = st.selectbox("Designated Driver", commuters)
-
-# Filter out the driver so they cannot accidentally be marked as a passenger
 passenger_options = [c for c in commuters if c != driver]
-
 full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options)
-
-# Filter out full-day passengers so they can't be selected for half-day
 remaining_options = [p for p in passenger_options if p not in full_day]
-half_day = st.multiselect("Half-Day Passengers — AM/PM (₹150)", remaining_options)
+half_day = st.multiselect("Half-Day Passengers (₹150)", remaining_options)
 
-# --- SAVE ACTION ---
 if st.button("💾 SAVE TRIP TO LEDGER"):
-    # Format selected passengers into text lists
+    if not TOKEN or not REPO:
+        st.error("Setup Incomplete: Please add GITHUB_TOKEN and GITHUB_REPO keys into your App Secrets configurations pane.")
+        st.stop()
+        
     full_day_str = ", ".join(full_day) if full_day else "None"
     half_day_str = ", ".join(half_day) if half_day else "None"
     
-    # Remove any existing entry for this exact date to allow clean overwrites/edits
-    st.session_state.trip_history = [t for t in st.session_state.trip_history if t["Date"] != str(travel_date)]
+    new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver, "Full Day Passengers": full_day_str, "Half Day Passengers": half_day_str}])
     
-    # Append the new entry
-    st.session_state.trip_history.append({
-        "Date": str(travel_date),
-        "Driver": driver,
-        "Full Day Passengers": full_day_str,
-        "Half Day Passengers": half_day_str
-    })
+    if not df_existing.empty:
+        df_existing = df_existing[df_existing["Date"].astype(str) != str(travel_date)]
+        df_final = pd.concat([df_existing, new_row], ignore_index=True)
+    else:
+        df_final = new_row
+        
+    csv_buffers = df_final.to_csv(index=False)
     
-    # Save permanently to the cloud workspace file
-    pd.DataFrame(st.session_state.trip_history).to_csv(DATA_FILE, index=False)
-    st.success(f"🎉 Trip successfully saved for {travel_date.strftime('%d %b')}!")
-
-# --- VIEW RECENT HISTORY ---
-if st.session_state.trip_history:
-    with st.expander("📊 View Saved Logs in This Session", expanded=False):
-        st.dataframe(pd.DataFrame(st.session_state.trip_history), use_container_width=True, hide_index=True)
+    # Get file sha metadata if it already exists to overwrite cleanly
+    r_exist = requests.get(URL, headers=HEADERS)
+    sha = r_exist.json()["sha"] if r_exist.status_code == 200 else None
+    
+    payload = {
+        "message": f"Update carpool records for {travel_date}",
+        "content": base64.b64encode(csv_buffers.encode("utf-8")).decode("utf-8")
+    }
+    if sha: payload["sha"] = sha
+        
+    r_put = requests.put(URL, headers=HEADERS, json=payload)
+    if r_put.status_code in [200, 201]:
+        st.success(f"🎉 Trip successfully pushed globally for {travel_date.strftime('%d %b')}!")
+        st.cache_data.clear()
+    else:
+        st.error(f"Write update rejection failure: {r_put.text}")
