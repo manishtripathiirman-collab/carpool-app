@@ -132,4 +132,115 @@ if not df_existing.empty:
                     "sha": sha
                 }
                 
-                r_put = requests.put(URL, headers
+                r_put = requests.put(URL, headers=HEADERS, json=payload)
+                if r_put.status_code in [200, 201]:
+                    st.error(f"🗑️ Date {delete_date} has been completely wiped from ledger!")
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+else:
+    st.info("No logs found in the cloud database file yet.")
+
+# --- RENDER CONDITIONAL ENTRY INTERFACE BASED ON LOCK STATUS ---
+st.markdown("<br>", unsafe_allow_html=True)
+
+# PRIORITY 1: Handle Success Intermission Display
+if st.session_state.just_saved:
+    st.success(st.session_state.saved_message)
+    st.session_state.just_saved = False
+    st.session_state.saved_message = ""
+    time.sleep(2.5)
+    st.rerun()
+
+# PRIORITY 2: Hard Lock Screen Check
+elif date_exists and not is_admin_authenticated and not st.session_state.disable_lock:
+    st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
+    st.markdown(f"""
+        <div class="lock-banner">
+            <span style="font-size: 45px;">🛑</span>
+            <h2 style="color: #EF4444; margin-top: 10px; font-weight:900; font-family:sans-serif; letter-spacing: 0.5px;">Abe Loudu dubara kyun kar raha!</h2>
+            <h4 style="margin: 12px 0 0 0; color: #F8FAFC; font-weight: 700;">Ab mantri karega Sahi.</h4>
+            <p style="margin: 18px 0 0 0; color: #94A3B8; font-size: 13px; font-style: italic;">[Data entry locked for {travel_date.strftime('%d %b %Y')} - Enter Admin passcode below to override]</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="back-btn">', unsafe_allow_html=True)
+    if st.button("🔙 GO BACK TO TODAY"):
+        st.query_params["reset"] = "true"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# PRIORITY 3: Standard Input Form
+else:
+    if date_exists and is_admin_authenticated:
+        st.warning(f"⚠️ Mode: Admin Override Active. Saving will overwrite the existing entry for {travel_date}.")
+        
+    commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
+    if not commuters: 
+        commuters = all_commuters
+
+    driver = st.selectbox("Designated Driver", commuters)
+    passenger_options = [c for c in commuters if c != driver]
+    full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options)
+    remaining_options = [p for p in passenger_options if p not in full_day]
+    half_day = st.multiselect("Half-Day Passengers (₹150)", remaining_options)
+
+    if st.button("💾 SAVE TRIP TO LEDGER"):
+        if not TOKEN or not REPO:
+            st.error("Setup Incomplete in Secrets panel.")
+            st.stop()
+
+        # HARD BACKEND VALIDATION GATE: Check the freshly pulled file status right now
+        live_check_url = f"{URL}?timestamp={datetime.datetime.now().timestamp()}"
+        r_check = requests.get(live_check_url, headers=HEADERS)
+        backend_date_exists = False
+        
+        if r_check.status_code == 200:
+            c_check = base64.b64decode(r_check.json()["content"]).decode("utf-8")
+            df_check = pd.read_csv(io.StringIO(c_check))
+            if not df_check.empty:
+                backend_date_exists = str(travel_date) in df_check["Date"].astype(str).values
+
+        # If data exists and you're not an authenticated admin -> REJECT ENTIRE PROCESS
+        if backend_date_exists and not is_admin_authenticated:
+            st.error("🛑 Overwrite Denied: This date was just logged by someone else! Please refresh or go back.")
+            st.stop()
+            
+        full_day_str = ", ".join(full_day) if full_day else "None"
+        half_day_str = ", ".join(half_day) if half_day else "None"
+        
+        new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver, "Full Day Passengers": full_day_str, "Half Day Passengers": half_day_str}])
+        
+        if not df_existing.empty:
+            df_cleaned = df_existing[df_existing["Date"].astype(str) != str(travel_date)]
+            df_final = pd.concat([df_cleaned, new_row], ignore_index=True)
+        else:
+            df_final = new_row
+            
+        csv_buffers = df_final.to_csv(index=False)
+        
+        r_exist = requests.get(URL, headers=HEADERS)
+        sha = r_exist.json()["sha"] if r_exist.status_code == 200 else None
+        
+        payload = {
+            "message": f"Update carpool records for {travel_date}",
+            "content": base64.b64encode(csv_buffers.encode("utf-8")).decode("utf-8")
+        }
+        if sha: 
+            payload["sha"] = sha
+            
+        r_put = requests.put(URL, headers=HEADERS, json=payload)
+        if r_put.status_code in [200, 201]:
+            praise_map = {
+                "Manish": "👑 Manish - Tere jaisa koi nahi!",
+                "Ankit": "✈️ Ankit - Wah kya Jahaj banaya hai!",
+                "Ajay": "🌶️ Ajay - Sexy mallu Zindabad!",
+                "Abhishek": "🔥 Abhishek - Wah jawani Wah!",
+                "Dk": "📢 Dk - Bhag Bose DK!"
+            }
+            custom_message = praise_map.get(driver, f"🎉 Trip successfully saved for driver {driver}!")
+            
+            st.session_state.just_saved = True
+            st.session_state.saved_message = custom_message
+            st.session_state.disable_lock = True
+            st.session_state.last_processed_date = str(travel_date)
+            st.rerun()
