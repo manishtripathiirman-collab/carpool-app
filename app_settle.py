@@ -43,18 +43,25 @@ if not TOKEN or not REPO:
 URL_TRIPS = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
 URL_EXPENSES = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
 
-df_trips, df_expenses = pd.DataFrame(), pd.DataFrame()
+# --- LIGHTWEIGHT HIGH-PERFORMANCE CACHING FETCH ENGINE ---
+@st.cache_data(ttl=15)  # Caches database results for 15 seconds to stop data lagging & network strains
+def fetch_carpool_data(url, headers):
+    try:
+        # Appending a low-overhead cache buster interval string to URL
+        r = requests.get(f"{url}?cb={int(time.time() / 15)}", headers=headers)
+        if r.status_code == 200:
+            csv_text = base64.b64decode(r.json()["content"]).decode("utf-8")
+            df = pd.read_csv(io.StringIO(csv_text))
+            if not df.empty:
+                df['Clean_Date'] = pd.to_datetime(df['Date']).dt.date
+                return df
+    except Exception:
+        pass
+    return pd.DataFrame()
 
-# Fetch Files with live cache breakers
-r_trips = requests.get(f"{URL_TRIPS}?ts={time.time()}", headers=HEADERS)
-if r_trips.status_code == 200:
-    df_trips = pd.read_csv(io.StringIO(base64.b64decode(r_trips.json()["content"]).decode("utf-8")))
-    if not df_trips.empty: df_trips['Clean_Date'] = pd.to_datetime(df_trips['Date']).dt.date
-
-r_expenses = requests.get(f"{URL_EXPENSES}?ts={time.time()}", headers=HEADERS)
-if r_expenses.status_code == 200:
-    df_expenses = pd.read_csv(io.StringIO(base64.b64decode(r_expenses.json()["content"]).decode("utf-8")))
-    if not df_expenses.empty: df_expenses['Clean_Date'] = pd.to_datetime(df_expenses['Date']).dt.date
+# Parallel non-blocking execution fetch
+df_trips = fetch_carpool_data(URL_TRIPS, HEADERS)
+df_expenses = fetch_carpool_data(URL_EXPENSES, HEADERS)
 
 def normalize_name(name_str):
     val = str(name_str).strip().upper()
@@ -69,7 +76,6 @@ if not df_trips.empty:
         
     filtered_trips = df_trips[(df_trips['Clean_Date'] >= start_date) & (df_trips['Clean_Date'] <= end_date)]
     
-    # Core separate ledgers
     carpool_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
     other_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
     
@@ -104,11 +110,8 @@ if not df_trips.empty:
         for j in range(i + 1, len(commuters)):
             p1, p2 = commuters[i], commuters[j]
             
-            cp_p1_owes = carpool_debts[p1][p2]
-            cp_p2_owes = carpool_debts[p2][p1]
-            
-            misc_p1_owes = other_debts[p1][p2]
-            misc_p2_owes = other_debts[p2][p1]
+            cp_p1_owes, cp_p2_owes = carpool_debts[p1][p2], carpool_debts[p2][p1]
+            misc_p1_owes, misc_p2_owes = other_debts[p1][p2], other_debts[p2][p1]
             
             total_p1_owes = cp_p1_owes + misc_p1_owes
             total_p2_owes = cp_p2_owes + misc_p2_owes
@@ -138,27 +141,20 @@ if not df_trips.empty:
         st.markdown("### 💎 Consolidated Net Pairwise Settlements")
         if net_settlements:
             for s in net_settlements:
-                f_name = s["From"]
-                t_name = s["To"]
-                
-                # Dynamic text builder for the clear sub-breakdown checklist row
+                f_name, t_name = s["From"], s["To"]
                 lines = []
                 
-                # Check Carpool positions
-                if s["p1_cp_gross"] > 0 or s["p2_cp_gross"] > 0:
-                    if s["p1_cp_gross"] > s["p2_cp_gross"]:
-                        lines.append(f"• 🚗 **Carpool Dues:** {f_name} owes {t_name} **₹{s['p1_cp_gross'] - s['p2_cp_gross']:.0f}** (Net)")
-                    elif s["p2_cp_gross"] > s["p1_cp_gross"]:
-                        lines.append(f"• 🚗 **Carpool Dues:** {t_name} owes {f_name} **₹{s['p2_cp_gross'] - s['p1_cp_gross']:.0f}** (Net)")
+                if s["p1_cp_gross"] > s["p2_cp_gross"]:
+                    lines.append(f"• 🚗 **Carpool Dues:** {f_name} owes {t_name} **₹{s['p1_cp_gross'] - s['p2_cp_gross']:.0f}**")
+                elif s["p2_cp_gross"] > s["p1_cp_gross"]:
+                    lines.append(f"• 🚗 **Carpool Dues:** {t_name} owes {f_name} **₹{s['p2_cp_gross'] - s['p1_cp_gross']:.0f}**")
                 
-                # Check Miscellaneous Expenses positions
-                if s["p1_misc_gross"] > 0 or s["p2_misc_gross"] > 0:
-                    if s["p1_misc_gross"] > s["p2_misc_gross"]:
-                        lines.append(f"• 🍔 **Other Spend:** {f_name} owes {t_name} **₹{s['p1_misc_gross'] - s['p2_misc_gross']:.0f}** (Net)")
-                    elif s["p2_misc_gross"] > s["p1_misc_gross"]:
-                        lines.append(f"• 🍔 **Other Spend:** {t_name} owes {f_name} **₹{s['p2_misc_gross'] - s['p1_misc_gross']:.0f}** (Net)")
+                if s["p1_misc_gross"] > s["p2_misc_gross"]:
+                    lines.append(f"• 🍔 **Other Spend:** {f_name} owes {t_name} **₹{s['p1_misc_gross'] - s['p2_misc_gross']:.0f}**")
+                elif s["p2_misc_gross"] > s["p1_misc_gross"]:
+                    lines.append(f"• 🍔 **Other Spend:** {t_name} owes {f_name} **₹{s['p2_misc_gross'] - s['p1_misc_gross']:.0f}**")
 
-                breakdown_html = "<br>".join(lines) if lines else "• No individual segment debts."
+                breakdown_html = "<br>".join(lines) if lines else "• No segment debts."
 
                 st.markdown(f"""
                 <div class="mobile-card">
@@ -174,20 +170,16 @@ if not df_trips.empty:
             
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # --- CONSOLIDATED WHATSAPP OUTPUT ENGINE ---
+            # --- CONSOLIDATED WHATSAPP ENGINE ---
             whatsapp_text = f"🚗 *Net Consolidated Payout Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
             whatsapp_text += "--------------------------------------\n"
             for s in net_settlements:
                 f_n, t_n = s["From"], s["To"]
                 whatsapp_text += f"👉 *{f_n}* pays *{t_n}*:  *₹{s['Amount']:.2f}*\n"
-                
-                # Appends itemized lines cleanly to the text snippet string 
                 if s["p1_cp_gross"] != s["p2_cp_gross"]:
-                    cp_amt = s["p1_cp_gross"] - s["p2_cp_gross"]
-                    whatsapp_text += f"   _↳ Carpool: {f_n if cp_amt > 0 else t_n} owes ₹{abs(cp_amt):.0f}_\n"
+                    whatsapp_text += f"   _↳ Carpool: {f_n if (s['p1_cp_gross'] - s['p2_cp_gross']) > 0 else t_n} owes ₹{abs(s['p1_cp_gross'] - s['p2_cp_gross']):.0f}_\n"
                 if s["p1_misc_gross"] != s["p2_misc_gross"]:
-                    misc_amt = s["p1_misc_gross"] - s["p2_misc_gross"]
-                    whatsapp_text += f"   _↳ Other Bills: {f_n if misc_amt > 0 else t_n} owes ₹{abs(misc_amt):.0f}_\n"
+                    whatsapp_text += f"   _↳ Other Bills: {f_n if (s['p1_misc_gross'] - s['p2_misc_gross']) > 0 else t_n} owes ₹{abs(s['p1_misc_gross'] - s['p2_misc_gross']):.0f}_\n"
                 whatsapp_text += "\n"
             whatsapp_text += "--------------------------------------"
             
@@ -198,11 +190,15 @@ if not df_trips.empty:
     with tab_ledger:
         st.markdown(f"### 📋 Full Bill Ledger Breakdown (Selected Window Total: ₹{total_period_expenses:,.2f})")
         if not filtered_expenses.empty:
-            st.dataframe(filtered_expenses[['Date', 'Paid By', 'Total Amount', 'Description', 'Shared By', 'Per Head Cost']].sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
-        else: st.info("No custom shared bills found within this selected date window.")
+            # Drop the temporary datetime tracking object right before rendering to save device UI memory
+            render_df = filtered_expenses.drop(columns=['Clean_Date']) if 'Clean_Date' in filtered_expenses.columns else filtered_expenses
+            st.dataframe(render_df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
+        else: 
+            st.info("No custom shared bills found within this selected date window.")
             
         st.markdown("---")
         with st.expander("📱 View Raw Travel Calendar Logs History"):
-            st.dataframe(filtered_trips.sort_values(by="Clean_Date", ascending=False), use_container_width=True, hide_index=True)
+            render_trips = filtered_trips.drop(columns=['Clean_Date']) if 'Clean_Date' in filtered_trips.columns else filtered_trips
+            st.dataframe(render_trips.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
 else:
     st.info("Log database file is empty.")
