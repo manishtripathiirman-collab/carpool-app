@@ -24,7 +24,6 @@ st.markdown("""
 
 st.markdown('<p class="mobile-title">💰 Settlement Panel</p>', unsafe_allow_html=True)
 
-# FIXED: Exact matching names spelling variant string from your log database file
 commuters = ["Manish Tripathi", "Abhishek Chaudhary", "Dk Maurya", "Ajay Nair", "Ankit Kapoor"]
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
@@ -36,7 +35,7 @@ if not TOKEN or not REPO:
     st.info("💡 Awaiting cloud connection keys. Please paste GITHUB_TOKEN inside your Streamlit Dashboard Secrets panel configuration.")
     st.stop()
 
-# Force live fetch bypass
+# Force live fresh fetch bypass
 live_url = f"{URL}?timestamp={datetime.datetime.now().timestamp()}"
 r = requests.get(live_url, headers=HEADERS)
 
@@ -59,20 +58,28 @@ if r.status_code == 200:
     
     for index, row in filtered_df.iterrows():
         if row['Clean_Date'].weekday() in [5, 6]: continue
-        driver = str(row['Driver']).strip()
+        
+        # Get driver first name
+        driver_raw = str(row['Driver']).strip().split()[0].lower()
+        driver_matched = next((c for c in commuters if c.lower().startswith(driver_raw)), None)
+        
+        if not driver_matched: continue
         
         full_p = [p.strip() for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
         half_p = [p.strip() for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
         
         for p in full_p:
-            matched_name = next((c for c in commuters if c.lower() == p.lower()), None)
-            if matched_name and matched_name != driver: 
-                raw_debts[matched_name][driver] += 300.0  
+            p_first = p.split()[0].lower()
+            # Match by checking if the name starts with the same characters (e.g. "abhishek")
+            matched_name = next((c for c in commuters if c.lower().startswith(p_first)), None)
+            if matched_name and matched_name != driver_matched: 
+                raw_debts[matched_name][driver_matched] += 300.0  
                 
         for p in half_p:
-            matched_name = next((c for c in commuters if c.lower() == p.lower()), None)
-            if matched_name and matched_name != driver: 
-                raw_debts[matched_name][driver] += 150.0  
+            p_first = p.split()[0].lower()
+            matched_name = next((c for c in commuters if c.lower().startswith(p_first)), None)
+            if matched_name and matched_name != driver_matched: 
+                raw_debts[matched_name][driver_matched] += 150.0  
 
     settlements = []
     for i in range(len(commuters)):
