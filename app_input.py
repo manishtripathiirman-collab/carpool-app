@@ -111,17 +111,16 @@ else:
 st.markdown("<br>", unsafe_allow_html=True)
 
 if date_exists and not is_admin_authenticated:
-    # URL pointing to a clean, high-visibility digital alert/error chime tone
     audio_url = "https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg"
     
+    # FIXED: Grouped all elements cleanly inside one single markdown container block
     st.markdown(f"""
         <div class="lock-banner">
             <span style="font-size: 36px;">🔒</span>
             <h3 style="color: #EF4444; margin-top: 10px; font-weight:800; font-family:sans-serif;">Abe Loudu dubara kyun kar raha!</h3>
             <p style="margin: 10px 0 0 0; color: #F8FAFC; font-size: 17px; font-weight: 600;">Ab mantri karega Sahi.</p>
             <p style="margin: 15px 0 0 0; color: #94A3B8; font-size: 13px;">[Data Locked for {travel_date.strftime('%d %b %Y')}]</p>
-            
-            <audio autoplay>
+            <audio autoplay style="display:none;">
                 <source src="{audio_url}" type="audio/ogg">
             </audio>
         </div>
