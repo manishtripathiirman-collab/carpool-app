@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from collections import defaultdict
 import datetime
 import requests
 import base64
@@ -35,6 +34,7 @@ if not TOKEN or not REPO:
     st.info("💡 Awaiting cloud connection keys.")
     st.stop()
 
+# Live cache bypass fetch link
 live_url = f"{URL}?timestamp={datetime.datetime.now().timestamp()}"
 r = requests.get(live_url, headers=HEADERS)
 
@@ -53,10 +53,9 @@ if r.status_code == 200:
     with st.expander(f"📱 View Logged Travel History ({len(filtered_df)} Days)"):
         st.dataframe(filtered_df, use_container_width=True, hide_index=True)
         
-    # Global database matrix tracker
-    raw_debts = defaultdict(lambda: defaultdict(float))
+    # FIXED: Clear, explicit 2D matrix storage setup to guarantee running total additions work
+    ledger_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
     
-    # FIXED: Strict sequential summing loops
     for _, row in filtered_df.iterrows():
         if row['Clean_Date'].weekday() in [5, 6]: continue
         
@@ -68,18 +67,19 @@ if r.status_code == 200:
         
         for p in full_p:
             if p in commuters and p != driver_matched:
-                raw_debts[p][driver_matched] += 300.0
+                ledger_debts[p][driver_matched] += 300.0
                 
         for p in half_p:
             if p in commuters and p != driver_matched:
-                raw_debts[p][driver_matched] += 150.0
+                ledger_debts[p][driver_matched] += 150.0
 
-    # Strict pairwise netting engine loops
+    # Cross pairwise calculations loop
     settlements = []
     for i in range(len(commuters)):
         for j in range(i + 1, len(commuters)):
             p1, p2 = commuters[i], commuters[j]
-            p1_owes, p2_owes = raw_debts[p1][p2], raw_debts[p2][p1]
+            p1_owes = ledger_debts[p1][p2]
+            p2_owes = ledger_debts[p2][p1]
             
             if p1_owes > p2_owes:
                 net = p1_owes - p2_owes
