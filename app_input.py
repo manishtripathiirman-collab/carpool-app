@@ -43,6 +43,10 @@ all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
 if "holiday_list" not in st.session_state:
     st.session_state.holiday_list = []
+if "just_saved" not in st.session_state:
+    st.session_state.just_saved = False
+if "saved_message" not in st.session_state:
+    st.session_state.saved_message = ""
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
@@ -125,7 +129,16 @@ else:
 # --- RENDER CONDITIONAL ENTRY INTERFACE BASED ON LOCK STATUS ---
 st.markdown("<br>", unsafe_allow_html=True)
 
-if date_exists and not is_admin_authenticated:
+# PRIORITY 1: Check if we just hit save (Bypass lock overlay display temporarily)
+if st.session_state.just_saved:
+    st.success(st.session_state.saved_message)
+    st.session_state.just_saved = False
+    st.session_state.saved_message = ""
+    time.sleep(2.5)
+    st.rerun()
+
+# PRIORITY 2: Regular Lock Condition Check
+elif date_exists and not is_admin_authenticated:
     st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
     st.markdown(f"""
         <div class="lock-banner">
@@ -135,6 +148,8 @@ if date_exists and not is_admin_authenticated:
             <p style="margin: 18px 0 0 0; color: #94A3B8; font-size: 13px; font-style: italic;">[Data entry locked for {travel_date.strftime('%d %b %Y')} - Enter Admin passcode below to override]</p>
         </div>
     """, unsafe_allow_html=True)
+
+# PRIORITY 3: Show form inputs
 else:
     if date_exists and is_admin_authenticated:
         st.warning(f"⚠️ Mode: Admin Override Active. Saving will overwrite the existing entry for {travel_date}.")
@@ -188,10 +203,7 @@ else:
             }
             custom_message = praise_map.get(driver, f"🎉 Trip successfully saved for driver {driver}!")
             
-            # Show balloons and praise text first
-            st.balloons()
-            st.success(custom_message)
-            
-            # ⏳ ADDED: Pause screen for 2.5 seconds so users can read the message before page refresh
-            time.sleep(2.5)
+            # Use cleaner session states to display message and block out everything else
+            st.session_state.just_saved = True
+            st.session_state.saved_message = custom_message
             st.rerun()
