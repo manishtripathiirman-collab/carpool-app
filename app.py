@@ -12,35 +12,74 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CUSTOM CSS FOR BETTER VISUALS ---
+# --- MODERN DESIGN SYSTEM (CUSTOM CSS WITH BACKGROUND IMAGE) ---
 st.markdown("""
     <style>
-    .big-font { font-size:24px !important; font-weight: 600; color: #1E3A8A; }
-    .whatsapp-box { background-color: #E7F5EE; padding: 15px; border-radius: 8px; border-left: 5px solid #25D366; }
-    .metric-box { background-color: #F3F4F6; padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #E5E7EB; }
+    /* Premium Background Image Configuration */
+    .stApp {
+        background-image: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), 
+                          url('https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1920&q=80');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+    
+    /* Sleek Translucent Cards for Content Containers */
+    div.element-container:has(div.stTextArea), div.element-container:has(div.stDateInput), .stExpander {
+        background: rgba(255, 255, 255, 0.75) !important;
+        backdrop-filter: blur(8px);
+        border-radius: 12px !important;
+        padding: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    }
+    
+    /* Typography Overrides */
+    .app-title { 
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        font-size: 32px !important; 
+        font-weight: 700; 
+        color: #1E3A8A;
+        letter-spacing: -0.5px;
+        margin-bottom: 5px;
+    }
+    
+    .section-header {
+        font-size: 18px !important;
+        font-weight: 600;
+        color: #1F2937;
+        margin-top: 20px;
+        margin-bottom: 10px;
+    }
+    
+    /* Clean DataFrame Styling Override */
+    .stDataFrame {
+        background: rgba(255, 255, 255, 0.9) !important;
+        border-radius: 8px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # --- TITLE HEADER ---
-st.markdown('<p class="big-font">🚗 Mission Gurgaon Commute Ledger</p>', unsafe_allow_html=True)
-st.caption("Calculate fares and direct person-to-person settlements cleanly.")
+st.markdown('<p class="app-title">🚗 Mission Gurgaon Commute Ledger</p>', unsafe_allow_html=True)
+st.caption("A premium cloud-connected ledger for effortless carpool settlements.")
 
 # --- INITIALIZE GROUP PROFILES ---
 if "commuters" not in st.session_state:
     st.session_state.commuters = ["Manish Tripathi", "Abhishek Chaudhary", "Dk Maurya", "Ajay Nair", "Ankit Kapoor"]
 
 # --- LAYOUT CARDS: STEP 1 ---
-st.markdown("### 📋 Step 1: Paste Sheet Logs")
-with st.expander("📂 Click here to open and paste your Google Sheet rows", expanded=True):
-    pasted_text = st.text_area(
-        "Select your columns (Date, Driver, Full, Half) inside Google Sheets, copy them, and drop them here:", 
-        height=140, 
-        placeholder="Date\tDriver\tFull Day Passengers\tHalf Day Passengers..."
-    )
+st.markdown('<p class="section-header">📋 Step 1: Paste Google Sheet Logs</p>', unsafe_allow_html=True)
+pasted_text = st.text_area(
+    "Select your columns (Date, Driver, Full, Half) inside Google Sheets, copy them, and drop them here:", 
+    height=130, 
+    placeholder="Date\tDriver\tFull Day Passengers\tHalf Day Passengers...",
+    label_visibility="collapsed"
+)
 
 if pasted_text.strip():
     try:
-        # Read clip data structures
+        # Read clipboard structure
         df = pd.read_csv(io.StringIO(pasted_text), sep="\t")
         df.columns = [str(c).strip().lower() for c in df.columns]
         
@@ -57,7 +96,7 @@ if pasted_text.strip():
         df = df.dropna(subset=['Clean_Date'])
         
         # --- LAYOUT CARDS: STEP 2 ---
-        st.markdown("### 🗓️ Step 2: Choose Billing Window")
+        st.markdown('<p class="section-header">🗓️ Step 2: Choose Billing Window</p>', unsafe_allow_html=True)
         min_date = min(df['Clean_Date'])
         max_date = max(df['Clean_Date'])
         
@@ -69,8 +108,7 @@ if pasted_text.strip():
             
         filtered_df = df[(df['Clean_Date'] >= start_date) & (df['Clean_Date'] <= end_date)]
         
-        # Display clean preview table with metric counts
-        with st.expander(f"👀 View Roster Preview Matrix ({len(filtered_df)} working days detected)"):
+        with st.expander(f"👀 View Verified Data Sheet ({len(filtered_df)} working days detected)", expanded=False):
             st.dataframe(filtered_df, use_container_width=True)
         
         # --- LOGIC PROCESSING ENGINE ---
@@ -120,7 +158,7 @@ if pasted_text.strip():
                     if net > 0: settlements.append({"From": p2, "To": p1, "Amount": net})
 
         # --- LAYOUT CARDS: STEP 3 (RESULTS) ---
-        st.markdown("### 💰 Step 3: Net Cash Settlements")
+        st.markdown('<p class="section-header">💰 Step 3: Net Cash Settlements</p>', unsafe_allow_html=True)
         
         if settlements:
             settlement_df = pd.DataFrame(settlements)
@@ -149,5 +187,5 @@ if pasted_text.strip():
     except Exception as e:
         st.error(f"Error parsing text structure layout. Make sure you select clean columns. Details: {e}")
 else:
-    # Stylized informational box when application is empty
+    st.markdown("<br>", unsafe_allow_html=True)
     st.info("💡 Awaiting input details. Copy your spreadsheet logs row matrix and paste them into Step 1 above to run calculation pipelines.")
