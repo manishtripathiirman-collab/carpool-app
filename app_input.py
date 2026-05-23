@@ -20,6 +20,7 @@ st.markdown("""
     div.stButton > button { width: 100%; background-color: #6366F1 !important; color: white !important; border-radius: 12px; font-weight: 700; padding: 12px; }
     .admin-btn > div.stButton > button { background-color: #EF4444 !important; }
     .back-btn > div.stButton > button { background-color: #475569 !important; border: 1px solid #64748B !important; margin-top: 15px; }
+    .exit-admin-btn > div.stButton > button { background-color: #1E293B !important; border: 1px solid #334155 !important; margin-top: 10px; color: #94A3B8 !important; }
     
     .lock-banner { 
         background-color: rgba(239, 68, 68, 0.2); 
@@ -29,6 +30,14 @@ st.markdown("""
         text-align: center; 
         margin-bottom: 20px;
         animation: pulse 1.5s infinite;
+    }
+    .future-banner {
+        background-color: rgba(234, 179, 8, 0.15); 
+        border: 2px solid #EAB308; 
+        padding: 25px; 
+        border-radius: 16px; 
+        text-align: center; 
+        margin-bottom: 20px;
     }
     @keyframes pulse {
         0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
@@ -52,6 +61,8 @@ if "last_processed_date" not in st.session_state:
     st.session_state.last_processed_date = None
 if "disable_lock" not in st.session_state:
     st.session_state.disable_lock = False
+if "admin_pin_input" not in st.session_state:
+    st.session_state.admin_pin_input = ""
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
@@ -67,20 +78,24 @@ if TOKEN and REPO:
         content = base64.b64decode(r.json()["content"]).decode("utf-8")
         df_existing = pd.read_csv(io.StringIO(content))
 
-# Check query parameter reset trigger
+# Date picker handling
 if "reset" in st.query_params:
     st.query_params.clear()
     travel_date = st.date_input("Date of Travel", datetime.date.today())
 else:
     travel_date = st.date_input("Date of Travel", datetime.date.today())
 
-# Arm the lock again if the user switches to a completely different date
+# Track date adjustments
 if st.session_state.last_processed_date != str(travel_date):
     st.session_state.disable_lock = False
     st.session_state.last_processed_date = str(travel_date)
 
+# Evaluated Date Logic Boundaries
+today_date = datetime.date.today()
+is_future_date = travel_date > today_date
+
 date_exists = False
-if not df_existing.empty:
+if not df_existing.empty and not is_future_date:
     date_exists = str(travel_date) in df_existing["Date"].astype(str).values
 
 is_admin_authenticated = False
@@ -95,11 +110,21 @@ if not df_existing.empty:
 
     st.markdown("<br>", unsafe_allow_html=True)
     with st.expander("🛠️ Admin Controls (Authorized Only)"):
-        admin_pin = st.text_input("Enter Admin PIN to Unlock / Delete", type="password")
+        # Controlled value input to clear state safely via native script execution
+        admin_pin = st.text_input("Enter Admin PIN to Unlock / Delete", type="password", value=st.session_state.admin_pin_input, key="admin_pin_field")
         
         if admin_pin == "9999":
             st.success("Access Granted: Master Controls Unlocked")
             is_admin_authenticated = True
+            
+            # EXIT ADMIN ACCESS NAVIGATION ELEMENT
+            st.markdown('<div class="exit-admin-btn">', unsafe_allow_html=True)
+            if st.button("🔙 EXIT ADMIN MODE"):
+                st.session_state.admin_pin_input = ""
+                st.query_params["reset"] = "true"
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("---")
             
             st.markdown("#### 🌴 Skip This Person (Active Holiday Matrix)")
             selected_holidays = []
@@ -143,8 +168,26 @@ else:
 # --- RENDER CONDITIONAL ENTRY INTERFACE BASED ON LOCK STATUS ---
 st.markdown("<br>", unsafe_allow_html=True)
 
+# GATE 1: Trap Future Selections Immediately
+if is_future_date:
+    st.warning("⏳ FUTURE TRIPS NOT ALLOWED")
+    st.markdown(f"""
+        <div class="future-banner">
+            <span style="font-size: 45px;">🔮</span>
+            <h2 style="color: #EAB308; margin-top: 10px; font-weight:800; font-family:sans-serif;">Bhai, antaryami mat bano!</h2>
+            <h4 style="color: #F8FAFC; font-weight: 700; margin-top: 5px;">You cannot log entries for future dates.</h4>
+            <p style="margin: 15px 0 0 0; color: #94A3B8; font-size: 13px; font-style: italic;">[Selected: {travel_date.strftime('%d %b %Y')} - Please select a valid current or past date]</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="back-btn">', unsafe_allow_html=True)
+    if st.button("🔙 GO BACK TO TODAY", key="future_back_btn"):
+        st.query_params["reset"] = "true"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
 # PRIORITY 1: Handle Success Intermission Display
-if st.session_state.just_saved:
+elif st.session_state.just_saved:
     st.success(st.session_state.saved_message)
     st.session_state.just_saved = False
     st.session_state.saved_message = ""
@@ -164,7 +207,7 @@ elif date_exists and not is_admin_authenticated and not st.session_state.disable
     """, unsafe_allow_html=True)
     
     st.markdown('<div class="back-btn">', unsafe_allow_html=True)
-    if st.button("🔙 GO BACK TO TODAY"):
+    if st.button("🔙 GO BACK TO TODAY", key="lock_back_btn"):
         st.query_params["reset"] = "true"
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
@@ -189,7 +232,7 @@ else:
             st.error("Setup Incomplete in Secrets panel.")
             st.stop()
 
-        # HARD BACKEND VALIDATION GATE: Check the freshly pulled file status right now
+        # Final Backend check
         live_check_url = f"{URL}?timestamp={datetime.datetime.now().timestamp()}"
         r_check = requests.get(live_check_url, headers=HEADERS)
         backend_date_exists = False
@@ -200,9 +243,8 @@ else:
             if not df_check.empty:
                 backend_date_exists = str(travel_date) in df_check["Date"].astype(str).values
 
-        # If data exists and you're not an authenticated admin -> REJECT ENTIRE PROCESS
         if backend_date_exists and not is_admin_authenticated:
-            st.error("🛑 Overwrite Denied: This date was just logged by someone else! Please refresh or go back.")
+            st.error("🛑 Overwrite Denied: This date was just logged by someone else!")
             st.stop()
             
         full_day_str = ", ".join(full_day) if full_day else "None"
