@@ -24,7 +24,8 @@ st.markdown("""
 
 st.markdown('<p class="mobile-title">💰 Settlement Panel</p>', unsafe_allow_html=True)
 
-commuters = ["Manish Tripathi", "Abhishek Chaudhary", "Dk Maurya", "Ajay Nair", "Ankit Kapoor"]
+# Master list changed to single first names
+commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
@@ -32,10 +33,9 @@ URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
 HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json"}
 
 if not TOKEN or not REPO:
-    st.info("💡 Awaiting cloud connection keys. Please paste GITHUB_TOKEN inside your Streamlit Dashboard Secrets panel configuration.")
+    st.info("💡 Awaiting cloud connection keys inside secrets dashboard.")
     st.stop()
 
-# Force live fresh fetch bypass
 live_url = f"{URL}?timestamp={datetime.datetime.now().timestamp()}"
 r = requests.get(live_url, headers=HEADERS)
 
@@ -59,25 +59,22 @@ if r.status_code == 200:
     for index, row in filtered_df.iterrows():
         if row['Clean_Date'].weekday() in [5, 6]: continue
         
-        # Get driver first name
-        driver_raw = str(row['Driver']).strip().split()[0].lower()
-        driver_matched = next((c for c in commuters if c.lower().startswith(driver_raw)), None)
+        # Pull out first names dynamically from the data row cells
+        driver_raw = str(row['Driver']).strip().split()[0].title()
+        driver_matched = next((c for c in commuters if c == driver_raw), None)
         
         if not driver_matched: continue
         
-        full_p = [p.strip() for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
-        half_p = [p.strip() for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
+        full_p = [p.strip().split()[0].title() for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
+        half_p = [p.strip().split()[0].title() for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
         
         for p in full_p:
-            p_first = p.split()[0].lower()
-            # Match by checking if the name starts with the same characters (e.g. "abhishek")
-            matched_name = next((c for c in commuters if c.lower().startswith(p_first)), None)
+            matched_name = next((c for c in commuters if c == p), None)
             if matched_name and matched_name != driver_matched: 
                 raw_debts[matched_name][driver_matched] += 300.0  
                 
         for p in half_p:
-            p_first = p.split()[0].lower()
-            matched_name = next((c for c in commuters if c.lower().startswith(p_first)), None)
+            matched_name = next((c for c in commuters if c == p), None)
             if matched_name and matched_name != driver_matched: 
                 raw_debts[matched_name][driver_matched] += 150.0  
 
@@ -114,4 +111,4 @@ if r.status_code == 200:
     else:
         st.success("🎉 All accounts match perfectly across this window!")
 else:
-    st.info("Log database is empty. Please save a few daily entries using your Mobile Logger app first.")
+    st.info("Log database is empty.")
