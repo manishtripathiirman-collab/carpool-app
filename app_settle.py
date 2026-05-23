@@ -1,6 +1,9 @@
 import streamlit as st
-import datetime
 import pandas as pd
+import datetime
+import requests
+import base64
+import io
 
 st.set_page_config(page_title="MG Payout Engine", page_icon="💰", layout="centered")
 
@@ -22,69 +25,90 @@ st.markdown('<p class="mobile-title">💰 Settlement Panel</p>', unsafe_allow_ht
 
 commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
-# Core Data Source
-mock_database = [
-    {"Date": "2026-05-22", "Driver": "Manish", "Full Day Passengers": "Abhishek, Dk, Ajay, Ankit", "Half Day Passengers": "None"},
-    {"Date": "2026-05-23", "Driver": "Manish", "Full Day Passengers": "Abhishek, Dk, Ajay, Ankit", "Half Day Passengers": "None"}
-]
+TOKEN = st.secrets.get("GITHUB_TOKEN", "")
+REPO = st.secrets.get("GITHUB_REPO", "")
+URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
+HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json"}
 
-# --- VISUAL TRAVEL HISTORY LOGS PANEL ---
-st.markdown("### 🗓️ Settlement Frame Window")
-st.caption("Showing calculated dates from active ledger")
+if not TOKEN or not REPO:
+    st.info("💡 Awaiting cloud connection keys inside secrets panel.")
+    st.stop()
 
-# Display the neat data table expander box
-with st.expander("📱 View Logged Travel History (2 Days)", expanded=True):
-    history_df = pd.DataFrame(mock_database)
-    st.dataframe(history_df, use_container_width=True, hide_index=True)
+# Force absolute live data fetch from GitHub bypassing cache
+live_url = f"{URL}?timestamp={datetime.datetime.now().timestamp()}"
+r = requests.get(live_url, headers=HEADERS)
 
-# Set up clean baseline dictionary totals grid
-ledger_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
-
-# Loop sequentially through the data to add totals
-for entry in mock_database:
-    dr = entry["Driver"]
-    full_p = [p.strip() for p in entry["Full Day Passengers"].split(",") if p.strip() and p.strip() != "None"]
-    half_p = [p.strip() for p in entry["Half Day Passengers"].split(",") if p.strip() and p.strip() != "None"]
+if r.status_code == 200:
+    content = base64.b64decode(r.json()["content"]).decode("utf-8")
+    df = pd.read_csv(io.StringIO(content))
+    df['Clean_Date'] = pd.to_datetime(df['Date']).dt.date
     
-    for p in full_p:
-        if p in commuters and p != dr:
-            ledger_debts[p][dr] += 300.0
-    for p in half_p:
-        if p in commuters and p != dr:
-            ledger_debts[p][dr] += 150.0
-
-# Netting cross calculations loops
-settlements = []
-for i in range(len(commuters)):
-    for j in range(i + 1, len(commuters)):
-        p1, p2 = commuters[i], commuters[j]
-        p1_owes = ledger_debts[p1][p2]
-        p2_owes = ledger_debts[p2][p1]
+    # --- DATE FILTERS BACK ---
+    st.markdown("### 🗓️ Select Settlement Frame Window")
+    col1, col2 = st.columns(2)
+    with col1: start_date = st.date_input("From Date", min(df['Clean_Date']))
+    with col2: end_date = st.date_input("To Date", max(df['Clean_Date']))
         
-        if p1_owes > p2_owes:
-            net = p1_owes - p2_owes
-            if net > 0: settlements.append({"From": p1, "To": p2, "Amount": net})
-        elif p2_owes > p1_owes:
-            net = p2_owes - p1_owes
-            if net > 0: settlements.append({"From": p2, "To": p1, "Amount": net})
+    filtered_df = df[(df['Clean_Date'] >= start_date) & (df['Clean_Date'] <= end_date)]
+    
+    with st.expander(f"📱 View Logged Travel History ({len(filtered_df)} Days)", expanded=True):
+        st.dataframe(filtered_df.sort_values(by="Clean_Date", ascending=False), use_container_width=True, hide_index=True)
+        
+    # Baseline matrix tracker
+    ledger_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
+    
+    # Process all selected rows dynamically
+    for _, row in filtered_df.iterrows():
+        if row['Clean_Date'].weekday() in [5, 6]: continue # Skip weekends
+        
+        driver_matched = str(row['Driver']).strip().title()
+        if driver_matched not in commuters: continue
+        
+        full_p = [p.strip().title() for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
+        half_p = [p.strip().title() for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
+        
+        for p in full_p:
+            if p in commuters and p != driver_matched:
+                ledger_debts[p][driver_matched] += 300.0
+    
+        for p in half_p:
+            if p in commuters and p != driver_matched:
+                ledger_debts[p][driver_matched] += 150.0
 
-st.markdown("### 💰 Calculated Net Pairwise Payouts")
-if settlements:
-    for s in settlements:
-        st.markdown(f"""
-        <div class="mobile-card">
-            <span class="badge-payout">₹{s['Amount']:.0f}</span>
-            <div style="font-weight:700; color:#F8FAFC;">👉 {s['From']}</div>
-            <div style="font-size:13px; color:#94A3B8; margin-top:4px;">Owes cash directly to <b>{s['To']}</b></div>
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("🟢 **Copy for WhatsApp Group Chat:**")
-    whatsapp_text = f"*🚗 Carpool Settlement Summary (22 May - 23 May):*\n"
-    whatsapp_text += "--------------------------------------\n"
-    for s in settlements: 
-        whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
-    whatsapp_text += "--------------------------------------\n"
-    st.code(whatsapp_text, language="text")
+    # Cross pairwise calculations loop
+    settlements = []
+    for i in range(len(commuters)):
+        for j in range(i + 1, len(commuters)):
+            p1, p2 = commuters[i], commuters[j]
+            p1_owes = ledger_debts[p1][p2]
+            p2_owes = ledger_debts[p2][p1]
+            
+            if p1_owes > p2_owes:
+                net = p1_owes - p2_owes
+                if net > 0: settlements.append({"From": p1, "To": p2, "Amount": net})
+            elif p2_owes > p1_owes:
+                net = p2_owes - p1_owes
+                if net > 0: settlements.append({"From": p2, "To": p1, "Amount": net})
+
+    st.markdown("### 💰 Calculated Net Pairwise Payouts")
+    if settlements:
+        for s in settlements:
+            st.markdown(f"""
+            <div class="mobile-card">
+                <span class="badge-payout">₹{s['Amount']:.0f}</span>
+                <div style="font-weight:700; color:#F8FAFC;">👉 {s['From']}</div>
+                <div style="font-size:13px; color:#94A3B8; margin-top:4px;">Owes cash directly to <b>{s['To']}</b></div>
+            </div>
+            """, unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("🟢 **Copy for WhatsApp Group Chat:**")
+        whatsapp_text = f"*🚗 Carpool Settlement Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
+        whatsapp_text += "--------------------------------------\n"
+        for s in settlements: 
+            whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
+        whatsapp_text += "--------------------------------------\n"
+        st.code(whatsapp_text, language="text")
+    else:
+        st.success("🎉 All accounts match perfectly across this window!")
 else:
-    st.success("🎉 All accounts match perfectly across this window!")
+    st.info("Log database file is empty.")
