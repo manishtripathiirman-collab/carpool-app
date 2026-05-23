@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 import base64
 import io
+import time
 
 st.set_page_config(page_title="MG Logger", page_icon="📝", layout="centered")
 
@@ -187,6 +188,10 @@ else:
             }
             custom_message = praise_map.get(driver, f"🎉 Trip successfully saved for driver {driver}!")
             
+            # Show balloons and praise text first
             st.balloons()
             st.success(custom_message)
+            
+            # ⏳ ADDED: Pause screen for 2.5 seconds so users can read the message before page refresh
+            time.sleep(2.5)
             st.rerun()
