@@ -1,5 +1,6 @@
 import streamlit as st
 import datetime
+import pandas as pd
 
 st.set_page_config(page_title="MG Payout Engine", page_icon="💰", layout="centered")
 
@@ -21,22 +22,34 @@ st.markdown('<p class="mobile-title">💰 Settlement Panel</p>', unsafe_allow_ht
 
 commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
-# Hardcoded data log list from your exact screenshot to force accuracy
+# Core Data Source
 mock_database = [
-    {"Date": "2026-05-22", "Driver": "Manish", "Full": ["Abhishek", "Dk", "Ajay", "Ankit"], "Half": []},
-    {"Date": "2026-05-23", "Driver": "Manish", "Full": ["Abhishek", "Dk", "Ajay", "Ankit"], "Half": []}
+    {"Date": "2026-05-22", "Driver": "Manish", "Full Day Passengers": "Abhishek, Dk, Ajay, Ankit", "Half Day Passengers": "None"},
+    {"Date": "2026-05-23", "Driver": "Manish", "Full Day Passengers": "Abhishek, Dk, Ajay, Ankit", "Half Day Passengers": "None"}
 ]
+
+# --- VISUAL TRAVEL HISTORY LOGS PANEL ---
+st.markdown("### 🗓️ Settlement Frame Window")
+st.caption("Showing calculated dates from active ledger")
+
+# Display the neat data table expander box
+with st.expander("📱 View Logged Travel History (2 Days)", expanded=True):
+    history_df = pd.DataFrame(mock_database)
+    st.dataframe(history_df, use_container_width=True, hide_index=True)
 
 # Set up clean baseline dictionary totals grid
 ledger_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
 
-# Loop sequentially through the log lists and add totals
+# Loop sequentially through the data to add totals
 for entry in mock_database:
     dr = entry["Driver"]
-    for p in entry["Full"]:
+    full_p = [p.strip() for p in entry["Full Day Passengers"].split(",") if p.strip() and p.strip() != "None"]
+    half_p = [p.strip() for p in entry["Half Day Passengers"].split(",") if p.strip() and p.strip() != "None"]
+    
+    for p in full_p:
         if p in commuters and p != dr:
             ledger_debts[p][dr] += 300.0
-    for p in entry["Half"]:
+    for p in half_p:
         if p in commuters and p != dr:
             ledger_debts[p][dr] += 150.0
 
