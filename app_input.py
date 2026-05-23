@@ -18,7 +18,9 @@ st.markdown("""
     label, p, span { color: #CBD5E1 !important; }
     div.stButton > button { width: 100%; background-color: #6366F1 !important; color: white !important; border-radius: 12px; font-weight: 700; padding: 12px; }
     .admin-btn > div.stButton > button { background-color: #EF4444 !important; }
-    .lock-banner { background-color: rgba(239, 68, 68, 0.15); border: 1px solid #EF4444; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
+    .lock-banner { background-color: rgba(239, 68, 68, 0.15); border: 1px solid #EF4444; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
+    .meme-container { display: flex; justify-content: center; margin-top: 15px; margin-bottom: 10px; }
+    .meme-img { border-radius: 12px; border: 2px solid rgba(239, 68, 68, 0.4); max-width: 100%; height: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
     </style>
 """, unsafe_allow_html=True)
 
@@ -112,14 +114,17 @@ else:
 # --- RENDER CONDITIONAL ENTRY INTERFACE BASED ON LOCK STATUS ---
 st.markdown("<br>", unsafe_allow_html=True)
 
-# If date exists and user is NOT authenticated as Admin -> TRIGGER PERSONALIZED BANNER
+# If date exists and user is NOT authenticated as Admin -> TRIGGER PERSONALIZED BANNER WITH MEME
 if date_exists and not is_admin_authenticated:
     st.markdown(f"""
         <div class="lock-banner">
             <span style="font-size: 32px;">🔒</span>
             <h3 style="color: #EF4444; margin-top: 10px; font-weight:800; font-family:sans-serif;">Abe Loudu dubara kyun kar raha!</h3>
             <p style="margin: 10px 0 0 0; color: #F8FAFC; font-size: 16px; font-weight: 600;">Ab mantri karega Sahi.</p>
-            <p style="margin: 15px 0 0 0; color: #94A3B8; font-size: 13px;">[Data Locked for {travel_date.strftime('%d %b %Y')} - Enter PIN below to unlock]</p>
+            <div class="meme-container">
+                <img src="https://media.tenor.com/images/84a20b0859a72df9b94091a0653d9f37/raw" class="meme-img" alt="Johnny Lever Judging">
+            </div>
+            <p style="margin: 10px 0 0 0; color: #94A3B8; font-size: 13px;">[Data Locked for {travel_date.strftime('%d %b %Y')} - Enter PIN below to unlock]</p>
         </div>
     """, unsafe_allow_html=True)
 else:
@@ -166,3 +171,4 @@ else:
         r_put = requests.put(URL, headers=HEADERS, json=payload)
         if r_put.status_code in [200, 201]:
             st.success(f"🎉 Trip successfully saved for {travel_date.strftime('%d %b')}!")
+            st.rerun()
