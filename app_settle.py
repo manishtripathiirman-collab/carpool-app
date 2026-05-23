@@ -17,7 +17,8 @@ st.markdown("""
         background-size: cover; background-position: center; background-attachment: fixed;
     }
     .mobile-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid rgba(99, 102, 241, 0.2); }
-    .badge-payout { background-color: rgba(244, 63, 94, 0.15); color: #FB7185; padding: 6px 14px; border-radius: 10px; font-size: 18px; font-weight: 800; float: right; }
+    .badge-carpool { background-color: rgba(99, 102, 241, 0.15); color: #818CF8; padding: 6px 14px; border-radius: 10px; font-size: 18px; font-weight: 800; float: right; }
+    .badge-expense { background-color: rgba(234, 179, 8, 0.15); color: #FBBF24; padding: 6px 14px; border-radius: 10px; font-size: 18px; font-weight: 800; float: right; }
     .mobile-title { font-family: sans-serif; font-size: 26px !important; font-weight: 800; color: #FFFFFF; }
     label, p, span, h3, h4 { color: #CBD5E1 !important; }
     
@@ -34,7 +35,7 @@ st.markdown("""
         border-radius: 12px;
         width: 100%;
         text-align: center;
-        margin-top: 10px;
+        margin-top: 15px;
         box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
     }
     .whatsapp-btn:hover { background-color: #20BA5A !important; text-decoration: none; color: white !important; }
@@ -42,7 +43,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<p class="mobile-title">💰 MG Carpool Hub</p>', unsafe_allow_html=True)
+st.markdown('<p class="mobile-title">💰 MG Carpool & Expense Hub</p>', unsafe_allow_html=True)
 
 commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
@@ -54,11 +55,9 @@ if not TOKEN or not REPO:
     st.info("💡 Awaiting cloud connection keys inside secrets panel.")
     st.stop()
 
-# Base Content URLs
 URL_TRIPS = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
 URL_EXPENSES = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
 
-# --- DATABASE FETCH ENGINE ---
 df_trips = pd.DataFrame()
 df_expenses = pd.DataFrame()
 
@@ -90,10 +89,11 @@ if not df_trips.empty:
         with st.expander(f"📱 View Logged Travel History ({len(filtered_trips)} Days)", expanded=False):
             st.dataframe(filtered_trips.sort_values(by="Clean_Date", ascending=False), use_container_width=True, hide_index=True)
             
-        # Running base account initialization matrix
-        ledger_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
+        # Isolate tracking structures
+        carpool_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
+        other_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
         
-        # 1. PROCESS DAILY TRIP LOG COSTS
+        # 1. PROCESS DAILY CARPOOL LOGS (ONLY)
         for _, row in filtered_trips.iterrows():
             driver_matched = str(row['Driver']).strip().title()
             if driver_matched not in commuters: continue
@@ -103,19 +103,19 @@ if not df_trips.empty:
             
             for p in full_p:
                 if p in commuters and p != driver_matched:
-                    ledger_debts[p][driver_matched] += 300.0
+                    carpool_debts[p][driver_matched] += 300.0
             for p in half_p:
                 if p in commuters and p != driver_matched:
-                    ledger_debts[p][driver_matched] += 150.0
+                    carpool_debts[p][driver_matched] += 150.0
 
-        # 2. PROCESS SHARED EXPENSES LOG BILLS (IF DATA EXISTS)
+        # 2. PROCESS OTHER NON-CARPOOL EXPENSES
         total_period_expenses = 0.0
         if not df_expenses.empty:
             filtered_expenses = df_expenses[(df_expenses['Clean_Date'] >= start_date) & (df_expenses['Clean_Date'] <= end_date)]
             
             if not filtered_expenses.empty:
                 total_period_expenses = filtered_expenses['Total Amount'].sum()
-                with st.expander(f"💰 View Shared Bills Logged In This Window (₹{total_period_expenses:,.2f})", expanded=False):
+                with st.expander(f"🍔 View Other Shared Bills Logged In This Window (₹{total_period_expenses:,.2f})", expanded=False):
                     st.dataframe(filtered_expenses.sort_values(by="Clean_Date", ascending=False), use_container_width=True, hide_index=True)
                 
                 for _, row in filtered_expenses.iterrows():
@@ -125,54 +125,91 @@ if not df_trips.empty:
                     
                     for p in consumers:
                         if p in commuters and p != payer:
-                            ledger_debts[p][payer] += per_head
+                            other_debts[p][payer] += per_head
 
-        # 3. PAIRWISE MINIMIZATION MATHEMATICS
-        settlements = []
+        # 3. CALCULATE CARPOOL SETTLEMENTS
+        cp_settlements = []
         for i in range(len(commuters)):
             for j in range(i + 1, len(commuters)):
                 p1, p2 = commuters[i], commuters[j]
-                p1_owes = ledger_debts[p1][p2]
-                p2_owes = ledger_debts[p2][p1]
+                p1_owes = carpool_debts[p1][p2]
+                p2_owes = carpool_debts[p2][p1]
                 
                 if p1_owes > p2_owes:
                     net = p1_owes - p2_owes
-                    if net > 0: settlements.append({"From": p1, "To": p2, "Amount": net})
+                    if net > 0: cp_settlements.append({"From": p1, "To": p2, "Amount": net})
                 elif p2_owes > p1_owes:
                     net = p2_owes - p1_owes
-                    if net > 0: settlements.append({"From": p2, "To": p1, "Amount": net})
+                    if net > 0: cp_settlements.append({"From": p2, "To": p1, "Amount": net})
 
-        st.markdown("### 💰 Calculated Net Pairwise Payouts")
-        if settlements:
-            for s in settlements:
+        # 4. CALCULATE OTHER EXPENSES SETTLEMENTS
+        misc_settlements = []
+        for i in range(len(commuters)):
+            for j in range(i + 1, len(commuters)):
+                p1, p2 = commuters[i], commuters[j]
+                p1_owes = other_debts[p1][p2]
+                p2_owes = other_debts[p2][p1]
+                
+                if p1_owes > p2_owes:
+                    net = p1_owes - p2_owes
+                    if net > 0: misc_settlements.append({"From": p1, "To": p2, "Amount": net})
+                elif p2_owes > p1_owes:
+                    net = p2_owes - p1_owes
+                    if net > 0: misc_settlements.append({"From": p2, "To": p1, "Amount": net})
+
+        # --- DISPLAY BLOCK 1: CARPOOL RUN PAYOUTS ---
+        st.markdown("### 🚗 1. Carpool Travel Settlements")
+        if cp_settlements:
+            for s in cp_settlements:
                 st.markdown(f"""
                 <div class="mobile-card">
-                    <span class="badge-payout">₹{s['Amount']:.2f}</span>
+                    <span class="badge-carpool">₹{s['Amount']:.2f}</span>
                     <div style="font-weight:700; color:#F8FAFC;">👉 {s['From']}</div>
-                    <div style="font-size:13px; color:#94A3B8; margin-top:4px;">Owes cash directly to <b>{s['To']}</b></div>
+                    <div style="font-size:13px; color:#94A3B8; margin-top:4px;">Owes travel fees to <b>{s['To']}</b></div>
                 </div>
                 """, unsafe_allow_html=True)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # --- WHATSAPP MESSAGE ENGINE ---
-            whatsapp_text = f"🚗 *Carpool Settlement Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
-            whatsapp_text += f"💵 *Total Hand-Logged Expenses Shared:* ₹{total_period_expenses:,.2f}\n"
-            whatsapp_text += "--------------------------------------\n"
-            for s in settlements: 
-                whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.2f}*\n"
-            whatsapp_text += "--------------------------------------"
-            
-            encoded_text = urllib.parse.quote(whatsapp_text)
-            whatsapp_url = f"https://wa.me/?text={encoded_text}"
-            
-            st.markdown(f"""
-                <a href="{whatsapp_url}" target="_blank" class="whatsapp-btn">
-                    💬 SHARE DIRECT TO WHATSAPP GROUP
-                </a>
-            """, unsafe_allow_html=True)
         else:
-            st.success("🎉 All accounts match perfectly across this window!")
+            st.info("No carpool payout dues across this frame window.")
+
+        # --- DISPLAY BLOCK 2: OTHER BILLS PAYOUTS ---
+        st.markdown("### 🍔 2. Other Expense Settlements")
+        if misc_settlements:
+            for s in misc_settlements:
+                st.markdown(f"""
+                <div class="mobile-card">
+                    <span class="badge-expense">₹{s['Amount']:.2f}</span>
+                    <div style="font-weight:700; color:#F8FAFC;">👉 {s['From']}</div>
+                    <div style="font-size:13px; color:#94A3B8; margin-top:4px;">Owes expense share to <b>{s['To']}</b></div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No miscellaneous shared bills dues across this frame window.")
+            
+        # --- SEPARATED WHATSAPP SUMMARY GENERATION ---
+        whatsapp_text = f"🚗 *Carpool Dues Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
+        if cp_settlements:
+            for s in cp_settlements: 
+                whatsapp_text += f"• *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.2f}*\n"
+        else:
+            whatsapp_text += "_All carpool accounts clear_\n"
+            
+        whatsapp_text += "\n🍔 *Other Expenses Summary:* \n"
+        if misc_settlements:
+            for s in misc_settlements: 
+                whatsapp_text += f"• *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.2f}*\n"
+        else:
+            whatsapp_text += "_No miscellaneous dues_\n"
+            
+        whatsapp_text += "--------------------------------------"
+        
+        encoded_text = urllib.parse.quote(whatsapp_text)
+        whatsapp_url = f"https://wa.me/?text={encoded_text}"
+        
+        st.markdown(f"""
+            <a href="{whatsapp_url}" target="_blank" class="whatsapp-btn">
+                💬 SHARE DIRECT TO WHATSAPP GROUP
+            </a>
+        """, unsafe_allow_html=True)
 
     # 🌟 DASHBOARD GRAPHICS ENGINE 🌟
     with tab_charts:
@@ -189,7 +226,6 @@ if not df_trips.empty:
             
         st.markdown("---")
         
-        # Chart 1: Driver Frequency
         st.markdown("#### 🚘 Driver Frequency Leaderboard")
         driver_counts = df_trips['Driver'].value_counts()
         driver_chart_data = pd.DataFrame(0, index=commuters, columns=['Trips Driven'])
@@ -198,7 +234,6 @@ if not df_trips.empty:
                 driver_chart_data.loc[comm, 'Trips Driven'] = driver_counts[comm]
         st.bar_chart(driver_chart_data)
         
-        # Chart 2: Cumulative Expense Matrix Contribution
         st.markdown("#### 💸 Gross Passenger Spending (Owed to Pool)")
         passenger_spending = {c: 0.0 for c in commuters}
         
