@@ -139,7 +139,8 @@ else:
         st.warning(f"⚠️ Mode: Admin Override Active. Saving will overwrite the existing entry for {travel_date}.")
         
     commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
-    if not commuters: commuters = all_commuters
+    if not commuters: 
+        commuters = all_commuters
 
     driver = st.selectbox("Designated Driver", commuters)
     passenger_options = [c for c in commuters if c != driver]
@@ -161,3 +162,31 @@ else:
             df_cleaned = df_existing[df_existing["Date"].astype(str) != str(travel_date)]
             df_final = pd.concat([df_cleaned, new_row], ignore_index=True)
         else:
+            df_final = new_row
+            
+        csv_buffers = df_final.to_csv(index=False)
+        
+        r_exist = requests.get(URL, headers=HEADERS)
+        sha = r_exist.json()["sha"] if r_exist.status_code == 200 else None
+        
+        payload = {
+            "message": f"Update carpool records for {travel_date}",
+            "content": base64.b64encode(csv_buffers.encode("utf-8")).decode("utf-8")
+        }
+        if sha: 
+            payload["sha"] = sha
+            
+        r_put = requests.put(URL, headers=HEADERS, json=payload)
+        if r_put.status_code in [200, 201]:
+            praise_map = {
+                "Manish": "👑 Manish - Tere jaisa koi nahi!",
+                "Ankit": "✈️ Ankit - Wah kya Jahaj banaya hai!",
+                "Ajay": "🌶️ Ajay - Sexy mallu Zindabad!",
+                "Abhishek": "🔥 Abhishek - Wah jawani Wah!",
+                "Dk": "📢 Dk - Bhag Bose DK!"
+            }
+            custom_message = praise_map.get(driver, f"🎉 Trip successfully saved for driver {driver}!")
+            
+            st.balloons()
+            st.success(custom_message)
+            st.rerun()
