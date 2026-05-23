@@ -16,14 +16,37 @@ st.markdown("""
         background-size: cover; background-position: center; background-attachment: fixed;
     }
     .mobile-title { font-family: sans-serif; font-size: 26px !important; font-weight: 800; color: #FFFFFF; margin-bottom: 0px; }
-    label, p, span, h3, h4 { color: #CBD5E1 !important; }
+    label, p, span, h2, h4 { color: #CBD5E1 !important; }
     div.stButton > button { width: 100%; background-color: #6366F1 !important; color: white !important; border-radius: 12px; font-weight: 700; padding: 12px; }
     .admin-btn > div.stButton > button { background-color: #EF4444 !important; }
+    .back-btn > div.stButton > button { background-color: #475569 !important; border: 1px solid #64748B !important; margin-top: 15px; }
     .exit-admin-btn > div.stButton > button { background-color: #1E293B !important; border: 1px solid #334155 !important; margin-top: 10px; color: #94A3B8 !important; }
     .stTabs [data-baseweb="tab-list"] { gap: 10px; }
     .stTabs [data-baseweb="tab"] { background-color: rgba(30, 41, 59, 0.7) !important; border: 1px solid #334155 !important; border-radius: 8px 8px 0px 0px; padding: 10px 20px !important; color: #94A3B8 !important; }
     .stTabs [aria-selected="true"] { background-color: #6366F1 !important; color: white !important; border-color: #6366F1 !important; }
-    .lock-banner { background-color: rgba(239, 68, 68, 0.2); border: 2px solid #EF4444; padding: 25px; border-radius: 16px; text-align: center; margin-bottom: 20px; }
+    
+    .lock-banner { 
+        background-color: rgba(239, 68, 68, 0.2); 
+        border: 2px solid #EF4444; 
+        padding: 25px; 
+        border-radius: 16px; 
+        text-align: center; 
+        margin-bottom: 20px;
+        animation: pulse 1.5s infinite;
+    }
+    .future-banner {
+        background-color: rgba(234, 179, 8, 0.15); 
+        border: 2px solid #EAB308; 
+        padding: 25px; 
+        border-radius: 16px; 
+        text-align: center; 
+        margin-bottom: 20px;
+    }
+    @keyframes pulse {
+        0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+        50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.7); border-color: #F87171; }
+        100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -49,11 +72,9 @@ df_existing = pd.DataFrame()
 df_exp_existing = pd.DataFrame()
 
 if TOKEN and REPO:
-    # Fetch trips
     r = requests.get(f"{TRIP_URL}?ts={time.time()}", headers=HEADERS)
     if r.status_code == 200:
         df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
-    # Fetch expenses
     r_e = requests.get(f"{EXPENSE_URL}?ts={time.time()}", headers=HEADERS)
     if r_e.status_code == 200:
         df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
@@ -78,14 +99,35 @@ with tab_trip:
 
     if is_future_date:
         st.warning("⏳ FUTURE TRIPS NOT ALLOWED")
-        st.markdown('<div class="lock-banner"><h2>🔮 Ye kam bhi Loudu ka hi hai</h2></div>', unsafe_allow_html=True)
+        st.markdown('<div class="future-banner"><span style="font-size: 45px;">🔮</span><h2 style="color: #EAB308; margin-top: 10px; font-weight:800; font-family:sans-serif;">Ye kam bhi Loudu ka hi hai</h2><h4 style="color: #F8FAFC; font-weight: 700; margin-top: 5px;">You cannot log entries for future dates.</h4></div>', unsafe_allow_html=True)
+        st.markdown('<div class="back-btn">', unsafe_allow_html=True)
+        if st.button("🔙 GO BACK TO TODAY", key="future_back_btn"):
+            st.query_params["reset"] = "true"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
     elif st.session_state.just_saved:
         st.success(st.session_state.saved_message)
         st.session_state.just_saved = False
         time.sleep(2.0)
         st.rerun()
+
+    # FIXED: Brought back your custom animated HTML roast banner block directly here!
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
         st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
+        st.markdown(f"""
+            <div class="lock-banner">
+                <span style="font-size: 45px;">🛑</span>
+                <h2 style="color: #EF4444; margin-top: 10px; font-weight:900; font-family:sans-serif; letter-spacing: 0.5px;">Abe Loudu dubara kyun kar raha!</h2>
+                <h4 style="margin: 12px 0 0 0; color: #F8FAFC; font-weight: 700;">Ab mantri karega Sahi.</h4>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown('<div class="back-btn">', unsafe_allow_html=True)
+        if st.button("🔙 GO BACK TO TODAY", key="lock_back_btn"):
+            st.query_params["reset"] = "true"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
     else:
         commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
         driver = st.selectbox("Designated Driver", commuters)
@@ -156,7 +198,6 @@ with st.expander("🛠️ Admin Controls (Authorized Only)"):
         st.markdown('</div>', unsafe_allow_html=True)
         st.markdown("---")
         
-        # --- CARPOOL TRIP DELETE CONTROL ---
         if not df_existing.empty:
             st.markdown("#### 🚗 Delete Travel Records")
             delete_date = st.selectbox("Select Travel Date to Delete completely:", sorted(df_existing["Date"].unique(), reverse=True))
@@ -174,23 +215,15 @@ with st.expander("🛠️ Admin Controls (Authorized Only)"):
             
         st.markdown("---")
         
-        # --- NEW: SHARED EXPENSE DELETE CONTROL CONTROL ---
         if not df_exp_existing.empty:
             st.markdown("#### 🍔 Delete / Manage Split Expenses")
-            
-            # Formats a drop-down label string so admin can tell bills apart easily
             df_exp_existing['Display_Label'] = df_exp_existing['Date'].astype(str) + " | " + df_exp_existing['Paid By'] + " | ₹" + df_exp_existing['Total Amount'].astype(str) + " (" + df_exp_existing['Description'] + ")"
-            
             selected_exp_label = st.selectbox("Select specific Bill Record to delete:", df_exp_existing['Display_Label'].unique())
-            
             st.markdown('<div class="admin-btn">', unsafe_allow_html=True)
             if st.button("🗑️ PERMANENTLY DELETE CHOSEN EXPENSE RECORD"):
-                # Clean drop filter matching everything except the chosen visual dropdown row
                 df_exp_final = df_exp_existing[df_exp_existing['Display_Label'] != selected_exp_label]
-                # Drop the temporary lookup label before saving back to GitHub database csv file
                 if 'Display_Label' in df_exp_final.columns:
                     df_exp_final = df_exp_final.drop(columns=['Display_Label'])
-                    
                 payload_exp = {"message": "Admin deleted an expense entry", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
                 r_exp = requests.get(f"{EXPENSE_URL}?ts={time.time()}", headers=HEADERS)
                 if r_exp.status_code == 200: payload_exp["sha"] = r_exp.json()["sha"]
