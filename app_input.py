@@ -18,9 +18,7 @@ st.markdown("""
     label, p, span { color: #CBD5E1 !important; }
     div.stButton > button { width: 100%; background-color: #6366F1 !important; color: white !important; border-radius: 12px; font-weight: 700; padding: 12px; }
     .admin-btn > div.stButton > button { background-color: #EF4444 !important; }
-    .lock-banner { background-color: rgba(239, 68, 68, 0.15); border: 1px solid #EF4444; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
-    .meme-container { display: flex; justify-content: center; margin-top: 15px; margin-bottom: 10px; }
-    .meme-img { border-radius: 12px; border: 2px solid rgba(239, 68, 68, 0.4); max-width: 100%; height: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+    .lock-banner { background-color: rgba(239, 68, 68, 0.15); border: 1px solid #EF4444; padding: 25px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -45,18 +43,16 @@ if TOKEN and REPO:
         content = base64.b64decode(r.json()["content"]).decode("utf-8")
         df_existing = pd.read_csv(io.StringIO(content))
 
-# Date picker up top to evaluate lock status dynamically
+# Date picker
 travel_date = st.date_input("Date of Travel", datetime.date.today())
 
-# Check if the chosen date already exists in the file
 date_exists = False
 if not df_existing.empty:
     date_exists = str(travel_date) in df_existing["Date"].astype(str).values
 
-# Admin Authentication Check for Override
 is_admin_authenticated = False
 
-# --- EXPANDER CONTROLS LOCATED AT THE BOTTOM ---
+# --- EXPANDER CONTROLS ---
 st.markdown("---")
 if not df_existing.empty:
     total_days = len(df_existing)
@@ -111,24 +107,26 @@ if not df_existing.empty:
 else:
     st.info("No logs found in the cloud database file yet.")
 
-# --- RENDER CONDITIONAL ENTRY INTERFACE BASED ON LOCK STATUS ---
+# --- RENDER INTERFACE OR AUDIO LOCKOUT BANNER ---
 st.markdown("<br>", unsafe_allow_html=True)
 
-# If date exists and user is NOT authenticated as Admin -> TRIGGER PERSONALIZED BANNER WITH MEME
 if date_exists and not is_admin_authenticated:
+    # URL pointing to a clean, high-visibility digital alert/error chime tone
+    audio_url = "https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg"
+    
     st.markdown(f"""
         <div class="lock-banner">
-            <span style="font-size: 32px;">🔒</span>
+            <span style="font-size: 36px;">🔒</span>
             <h3 style="color: #EF4444; margin-top: 10px; font-weight:800; font-family:sans-serif;">Abe Loudu dubara kyun kar raha!</h3>
-            <p style="margin: 10px 0 0 0; color: #F8FAFC; font-size: 16px; font-weight: 600;">Ab mantri karega Sahi.</p>
-            <div class="meme-container">
-                <img src="https://media.tenor.com/images/84a20b0859a72df9b94091a0653d9f37/raw" class="meme-img" alt="Johnny Lever Judging">
-            </div>
-            <p style="margin: 10px 0 0 0; color: #94A3B8; font-size: 13px;">[Data Locked for {travel_date.strftime('%d %b %Y')} - Enter PIN below to unlock]</p>
+            <p style="margin: 10px 0 0 0; color: #F8FAFC; font-size: 17px; font-weight: 600;">Ab mantri karega Sahi.</p>
+            <p style="margin: 15px 0 0 0; color: #94A3B8; font-size: 13px;">[Data Locked for {travel_date.strftime('%d %b %Y')}]</p>
+            
+            <audio autoplay>
+                <source src="{audio_url}" type="audio/ogg">
+            </audio>
         </div>
     """, unsafe_allow_html=True)
 else:
-    # Otherwise, display the entry form safely
     if date_exists and is_admin_authenticated:
         st.warning(f"⚠️ Mode: Admin Override Active. Saving will overwrite the existing entry for {travel_date}.")
         
