@@ -22,16 +22,15 @@ st.markdown("""
 
 st.markdown('<p class="mobile-title">📝 Log Daily Commute</p>', unsafe_allow_html=True)
 
-commuters = ["Manish Tripathi", "Abhishek Chaudhary", "Dk Maurya", "Ajay Nair", "Ankit Kapoor"]
+# Master list changed to single first names
+commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
-# API configuration helpers
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
 URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
 HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json"}
 
-# Fetch shared file from GitHub Repo Cloud Storage
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=2)
 def load_global_csv():
     if not TOKEN or not REPO: return pd.DataFrame()
     r = requests.get(URL, headers=HEADERS)
@@ -51,7 +50,7 @@ half_day = st.multiselect("Half-Day Passengers (₹150)", remaining_options)
 
 if st.button("💾 SAVE TRIP TO LEDGER"):
     if not TOKEN or not REPO:
-        st.error("Setup Incomplete: Please add GITHUB_TOKEN and GITHUB_REPO keys into your App Secrets configurations pane.")
+        st.error("Setup Incomplete in Secrets panel.")
         st.stop()
         
     full_day_str = ", ".join(full_day) if full_day else "None"
@@ -60,14 +59,13 @@ if st.button("💾 SAVE TRIP TO LEDGER"):
     new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver, "Full Day Passengers": full_day_str, "Half Day Passengers": half_day_str}])
     
     if not df_existing.empty:
-        df_existing = df_existing[df_existing["Date"].astype(str) != str(travel_date)]
-        df_final = pd.concat([df_existing, new_row], ignore_index=True)
+        df_cleaned = df_existing[df_existing["Date"].astype(str) != str(travel_date)]
+        df_final = pd.concat([df_cleaned, new_row], ignore_index=True)
     else:
         df_final = new_row
         
     csv_buffers = df_final.to_csv(index=False)
     
-    # Get file sha metadata if it already exists to overwrite cleanly
     r_exist = requests.get(URL, headers=HEADERS)
     sha = r_exist.json()["sha"] if r_exist.status_code == 200 else None
     
@@ -79,7 +77,6 @@ if st.button("💾 SAVE TRIP TO LEDGER"):
         
     r_put = requests.put(URL, headers=HEADERS, json=payload)
     if r_put.status_code in [200, 201]:
-        st.success(f"🎉 Trip successfully pushed globally for {travel_date.strftime('%d %b')}!")
+        st.success(f"🎉 Trip successfully saved for {travel_date.strftime('%d %b')}!")
         st.cache_data.clear()
-    else:
-        st.error(f"Write update rejection failure: {r_put.text}")
+        st.rerun()
