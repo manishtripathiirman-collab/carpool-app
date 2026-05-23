@@ -24,7 +24,6 @@ st.markdown("""
 
 st.markdown('<p class="mobile-title">💰 Settlement Panel</p>', unsafe_allow_html=True)
 
-# Master list changed to single first names
 commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
@@ -33,7 +32,7 @@ URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
 HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json"}
 
 if not TOKEN or not REPO:
-    st.info("💡 Awaiting cloud connection keys inside secrets dashboard.")
+    st.info("💡 Awaiting cloud connection keys.")
     st.stop()
 
 live_url = f"{URL}?timestamp={datetime.datetime.now().timestamp()}"
@@ -54,30 +53,28 @@ if r.status_code == 200:
     with st.expander(f"📱 View Logged Travel History ({len(filtered_df)} Days)"):
         st.dataframe(filtered_df, use_container_width=True, hide_index=True)
         
+    # Global database matrix tracker
     raw_debts = defaultdict(lambda: defaultdict(float))
     
-    for index, row in filtered_df.iterrows():
+    # FIXED: Strict sequential summing loops
+    for _, row in filtered_df.iterrows():
         if row['Clean_Date'].weekday() in [5, 6]: continue
         
-        # Pull out first names dynamically from the data row cells
-        driver_raw = str(row['Driver']).strip().split()[0].title()
-        driver_matched = next((c for c in commuters if c == driver_raw), None)
+        driver_matched = str(row['Driver']).strip().title()
+        if driver_matched not in commuters: continue
         
-        if not driver_matched: continue
-        
-        full_p = [p.strip().split()[0].title() for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
-        half_p = [p.strip().split()[0].title() for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
+        full_p = [p.strip().title() for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
+        half_p = [p.strip().title() for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
         
         for p in full_p:
-            matched_name = next((c for c in commuters if c == p), None)
-            if matched_name and matched_name != driver_matched: 
-                raw_debts[matched_name][driver_matched] += 300.0  
+            if p in commuters and p != driver_matched:
+                raw_debts[p][driver_matched] += 300.0
                 
         for p in half_p:
-            matched_name = next((c for c in commuters if c == p), None)
-            if matched_name and matched_name != driver_matched: 
-                raw_debts[matched_name][driver_matched] += 150.0  
+            if p in commuters and p != driver_matched:
+                raw_debts[p][driver_matched] += 150.0
 
+    # Strict pairwise netting engine loops
     settlements = []
     for i in range(len(commuters)):
         for j in range(i + 1, len(commuters)):
@@ -105,7 +102,8 @@ if r.status_code == 200:
         st.markdown("🟢 **Copy for WhatsApp Group Chat:**")
         whatsapp_text = f"*🚗 Carpool Settlement Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
         whatsapp_text += "--------------------------------------\n"
-        for s in settlements: whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
+        for s in settlements: 
+            whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
         whatsapp_text += "--------------------------------------\n"
         st.code(whatsapp_text, language="text")
     else:
