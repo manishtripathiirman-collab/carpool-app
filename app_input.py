@@ -20,16 +20,17 @@ st.markdown("""
     .admin-btn > div.stButton > button { background-color: #EF4444 !important; }
     .lock-banner { background-color: rgba(239, 68, 68, 0.15); border: 1px solid #EF4444; padding: 25px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
     
-    /* Custom Siren Button */
+    /* Custom Siren Button Style */
     .siren-trigger-btn {
         background-color: #EF4444 !important;
         color: white !important;
         border: none;
-        padding: 10px 20px;
+        padding: 12px 24px;
         font-weight: 700;
         border-radius: 8px;
         margin-top: 15px;
         cursor: pointer;
+        width: 100%;
         box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4);
     }
     </style>
@@ -65,7 +66,7 @@ if not df_existing.empty:
 
 is_admin_authenticated = False
 
-# --- EXPANDER CONTROLS ---
+# --- EXPANDER CONTROLS AT THE BOTTOM ---
 st.markdown("---")
 if not df_existing.empty:
     total_days = len(df_existing)
@@ -120,29 +121,31 @@ if not df_existing.empty:
 else:
     st.info("No logs found in the cloud database file yet.")
 
-# --- RENDER INTERFACE OR AUDIO LOCKOUT BANNER WITH INTERACTIVE AUDIO ---
+# --- RENDER CONDITIONAL ENTRY INTERFACE BASED ON LOCK STATUS ---
 st.markdown("<br>", unsafe_allow_html=True)
 
 if date_exists and not is_admin_authenticated:
     audio_url = "https://actions.google.com/sounds/v1/alarms/emergency_siren.ogg"
     
-    # Using JavaScript inside HTML to trigger audio instantly via a user click bypass
-    st.markdown(f"""
+    # Combined cleanly inside ONE absolute markdown block so Streamlit doesn't print raw text code
+    lock_html = f"""
         <div class="lock-banner">
             <span style="font-size: 38px;">🚨</span>
-            <h3 style="color: #EF4444; margin-top: 10px; font-weight:800; font-family:sans-serif;">Abe Loudu dubara kyun kar raha!</h3>
-            <p style="margin: 10px 0 0 0; color: #F8FAFC; font-size: 17px; font-weight: 600;">Ab mantri karega Sahi.</p>
-            <p style="margin: 15px 0 0 0; color: #94A3B8; font-size: 13px;">[Data Locked for {travel_date.strftime('%d %b %Y')}]</p>
+            <h3 style="color: #EF4444; margin-top: 10px; font-weight:800; font-family:sans-serif; margin-bottom: 5px;">Abe Loudu dubara kyun kar raha!</h3>
+            <p style="margin: 5px 0 0 0; color: #F8FAFC; font-size: 17px; font-weight: 600;">Ab mantri karega Sahi.</p>
+            <p style="margin: 12px 0 0 0; color: #94A3B8; font-size: 13px;">[Data Locked for {travel_date.strftime('%d %b %Y')}]</p>
             
-            <audio id="sirenAudio">
+            <audio id="sirenAudio" preload="auto">
                 <source src="{audio_url}" type="audio/ogg">
             </audio>
             
-            <button class="siren-trigger-btn" onclick="document.getElementById('sirenAudio').play()">
+            <button class="siren-trigger-btn" onclick="document.getElementById('sirenAudio').play();">
                 📢 PLAY SIREN ALARM
             </button>
         </div>
-    """, unsafe_allow_html=True)
+    """
+    st.markdown(lock_html, unsafe_allow_html=True)
+
 else:
     if date_exists and is_admin_authenticated:
         st.warning(f"⚠️ Mode: Admin Override Active. Saving will overwrite the existing entry for {travel_date}.")
