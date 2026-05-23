@@ -26,7 +26,7 @@ st.markdown('<p class="mobile-title">📝 Log Daily Commute</p>', unsafe_allow_h
 # Master list of all members
 all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
-# --- INITIALIZE HOLIDAY TRACKER STATE ---
+# Initialize holiday list state structure safely
 if "holiday_list" not in st.session_state:
     st.session_state.holiday_list = []
 
@@ -45,15 +45,14 @@ if TOKEN and REPO:
         content = base64.b64decode(r.json()["content"]).decode("utf-8")
         df_existing = pd.read_csv(io.StringIO(content))
 
-# --- FILTER ACTIVE COMMUTERS BASED ON HOLIDAYS ---
+# Filter active riders using our matrix options
 commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
 
-# Fallback safety check if everyone is selected as away
 if not commuters:
-    st.warning("⚠️ All commuters are marked on holiday! Showing the full list instead.")
+    st.warning("⚠️ All commuters are marked on holiday! Showing full roster instead.")
     commuters = all_commuters
 
-# Main Input Interface
+# Primary interface drop listings
 travel_date = st.date_input("Date of Travel", datetime.date.today())
 driver = st.selectbox("Designated Driver", commuters)
 
@@ -101,7 +100,7 @@ if not df_existing.empty:
     with st.expander("👁️ View All Logged Days", expanded=False):
         st.dataframe(df_existing.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
 
-    # --- UPDATED: ADMIN CONTROL PANEL WITH HOLIDAY MATRIX ---
+    # --- ADMIN MATRIX PANEL ---
     st.markdown("<br>", unsafe_allow_html=True)
     with st.expander("🛠️ Admin Controls (Authorized Only)"):
         admin_pin = st.text_input("Enter Admin PIN to Unlock", type="password")
@@ -109,9 +108,8 @@ if not df_existing.empty:
         if admin_pin == "9999":
             st.success("Access Granted: Master Controls Unlocked")
             
-            # 🌴 Holiday Matrix Feature Section
             st.markdown("#### 🌴 Skip This Person (Active Holiday Matrix)")
-            st.caption("Check the boxes of members who are away this week to hide them from entry screens:")
+            st.caption("Check members away on holiday to temporarily hide them from list choices:")
             
             selected_holidays = []
             cols = st.columns(len(all_commuters))
@@ -121,15 +119,11 @@ if not df_existing.empty:
                     if is_away:
                         selected_holidays.append(person)
             
-            # Dynamically update the session list if a checkbox shifts
             if sorted(selected_holidays) != sorted(st.session_state.holiday_list):
                 st.session_state.holiday_list = selected_holidays
-                st.toast("Active commuter list updated!")
                 st.rerun()
                 
             st.markdown("---")
-            
-            # Standard Date Deletion Tool
             st.markdown("#### 🗑️ Delete Ledger Records")
             delete_date = st.selectbox("Select Date to Delete completely:", sorted(df_existing["Date"].unique(), reverse=True))
             
@@ -153,4 +147,4 @@ if not df_existing.empty:
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 else:
-    st.info("No logs found in the
+    st.info("No logs found in the cloud database file yet.")
