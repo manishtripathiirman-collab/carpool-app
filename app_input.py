@@ -166,12 +166,14 @@ with tab_trip:
                 st.session_state.last_processed_date = str(travel_date)
                 st.rerun()
 
-# TAB 2: BRAND NEW EXPENSE SPLITTER
+# TAB 2: FIXED EXPENSE SPLITTER VALIDATION
 with tab_expense:
     st.markdown("### 💰 Add Shared Expense")
     exp_date = st.date_input("Date of Expense", datetime.date.today(), key="exp_date_picker")
     payer = st.selectbox("Who Paid the Bill?", all_commuters, key="exp_payer")
-    amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, step=50.0)
+    
+    # FIXED: Added default value=0.0 parameter explicitly so it never tracks as empty/None
+    amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=0.0, step=50.0)
     item_desc = st.text_input("What was this for?", placeholder="e.g., Highway Toll, Petrol, Snacks")
     
     st.markdown("**Who was in the car? (Cost splits equally)**")
@@ -183,8 +185,13 @@ with tab_expense:
             if is_checked: selected_consumers.append(person)
 
     if st.button("💸 DISTRIBUTE & SAVE EXPENSE"):
-        if amount <= 0 or not item_desc or len(selected_consumers) == 0:
-            st.error("Fill all details properly!")
+        # Explicitly checking values to avoid string matching errors
+        if amount <= 0.0:
+            st.error("🛑 Amount must be greater than 0!")
+        elif not item_desc.strip():
+            st.error("🛑 Please enter a description for the expense!")
+        elif len(selected_consumers) == 0:
+            st.error("🛑 Please check at least one person sharing this bill!")
         else:
             with st.spinner("Saving expense..."):
                 split_share = round(amount / len(selected_consumers), 2)
