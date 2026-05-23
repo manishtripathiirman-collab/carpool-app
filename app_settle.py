@@ -51,26 +51,26 @@ if r.status_code == 200:
     with st.expander(f"📱 View Logged Travel History ({len(filtered_df)} Days)"):
         st.dataframe(filtered_df, use_container_width=True, hide_index=True)
         
+    # Using a running total ledger dictionary
     raw_debts = defaultdict(lambda: defaultdict(float))
     
-    for _, row in filtered_df.iterrows():
+    # FIXED: Loop through every single row individually and sum them up
+    for index, row in filtered_df.iterrows():
         if row['Clean_Date'].weekday() in [5, 6]: continue
         driver = str(row['Driver']).strip()
         
-        # FIXED: Robust clean parsing loops for comma-separated string cells
         full_p = [p.strip() for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
         half_p = [p.strip() for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
         
         for p in full_p:
-            # Matches commuter names perfectly even if surrounded by trailing spaces or line breaks
             matched_name = next((c for c in commuters if c.lower() == p.lower()), None)
             if matched_name and matched_name != driver: 
-                raw_debts[matched_name][driver] += 300.0
+                raw_debts[matched_name][driver] += 300.0  # Adds ₹300 to the total every time they ride
                 
         for p in half_p:
             matched_name = next((c for c in commuters if c.lower() == p.lower()), None)
             if matched_name and matched_name != driver: 
-                raw_debts[matched_name][driver] += 150.0
+                raw_debts[matched_name][driver] += 150.0  # Adds ₹150 to the total every time they ride
 
     # Cross-netting Matrix
     settlements = []
