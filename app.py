@@ -200,4 +200,38 @@ if pasted_text.strip():
                     if net > 0: settlements.append({"From": p1, "To": p2, "Amount": net})
                 elif p2_owes > p1_owes:
                     net = p2_owes - p1_owes
-                    if net > 0: settlements.append({"From":
+                    if net > 0: settlements.append({"From": p2, "To": p1, "Amount": net})
+
+        # --- STEP 3: PREMIUM NATIVE CARD DISPLAY ---
+        st.markdown('<p class="section-header">💰 STEP 3: FINAL NET SETTLEMENTS</p>', unsafe_allow_html=True)
+        
+        if settlements:
+            for s in settlements:
+                st.markdown(f"""
+                <div class="mobile-card">
+                    <span class="badge-payout">₹{s['Amount']:.0f}</span>
+                    <div class="card-name">👉 {s['From']}</div>
+                    <div class="card-sub">Owes settlement directly to <b>{s['To']}</b></div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            # Render optimized text summary code box
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("🟢 **Copy for WhatsApp Group Chat:**")
+            
+            whatsapp_text = f"*🚗 Carpool Settlement Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
+            whatsapp_text += "--------------------------------------\n"
+            for s in settlements:
+                whatsapp_text += f"👉 *{s['From']}* pays *{s['To']}*:  *₹{s['Amount']:.0f}*\n"
+            whatsapp_text += "--------------------------------------\n"
+            whatsapp_text += "💡 _Calculated strictly direct peer-to-peer._"
+            
+            st.code(whatsapp_text, language="text")
+        else:
+            st.success("🎉 All accounts match up perfectly! No transfers required.")
+            
+    except Exception as e:
+        st.error(f"Error parsing row elements. Make sure you copied the top title labels from your sheet. Details: {e}")
+else:
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.info("💡 Ready for input. Open your Google Sheet app, copy your row cells, and paste them into Step 1 above.")
