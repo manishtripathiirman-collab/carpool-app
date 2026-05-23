@@ -35,7 +35,11 @@ if not TOKEN or not REPO:
     st.info("💡 Awaiting cloud connection keys. Please paste GITHUB_TOKEN inside your Streamlit Dashboard Secrets panel configuration.")
     st.stop()
 
-r = requests.get(URL, headers=HEADERS)
+# --- FIXED: LIVE FRESH FETCH (NO CACHING AT ALL) ---
+# Adding a timestamp query bypasses GitHub's and Streamlit's old data caches instantly
+live_url = f"{URL}?timestamp={datetime.datetime.now().timestamp()}"
+r = requests.get(live_url, headers=HEADERS)
+
 if r.status_code == 200:
     content = base64.b64decode(r.json()["content"]).decode("utf-8")
     df = pd.read_csv(io.StringIO(content))
@@ -51,10 +55,8 @@ if r.status_code == 200:
     with st.expander(f"📱 View Logged Travel History ({len(filtered_df)} Days)"):
         st.dataframe(filtered_df, use_container_width=True, hide_index=True)
         
-    # Using a running total ledger dictionary
     raw_debts = defaultdict(lambda: defaultdict(float))
     
-    # FIXED: Loop through every single row individually and sum them up
     for index, row in filtered_df.iterrows():
         if row['Clean_Date'].weekday() in [5, 6]: continue
         driver = str(row['Driver']).strip()
@@ -65,14 +67,13 @@ if r.status_code == 200:
         for p in full_p:
             matched_name = next((c for c in commuters if c.lower() == p.lower()), None)
             if matched_name and matched_name != driver: 
-                raw_debts[matched_name][driver] += 300.0  # Adds ₹300 to the total every time they ride
+                raw_debts[matched_name][driver] += 300.0  
                 
         for p in half_p:
             matched_name = next((c for c in commuters if c.lower() == p.lower()), None)
             if matched_name and matched_name != driver: 
-                raw_debts[matched_name][driver] += 150.0  # Adds ₹150 to the total every time they ride
+                raw_debts[matched_name][driver] += 150.0  
 
-    # Cross-netting Matrix
     settlements = []
     for i in range(len(commuters)):
         for j in range(i + 1, len(commuters)):
