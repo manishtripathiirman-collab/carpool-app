@@ -48,6 +48,10 @@ if "just_saved" not in st.session_state:
     st.session_state.just_saved = False
 if "saved_message" not in st.session_state:
     st.session_state.saved_message = ""
+if "last_processed_date" not in st.session_state:
+    st.session_state.last_processed_date = None
+if "disable_lock" not in st.session_state:
+    st.session_state.disable_lock = False
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
@@ -63,12 +67,17 @@ if TOKEN and REPO:
         content = base64.b64decode(r.json()["content"]).decode("utf-8")
         df_existing = pd.read_csv(io.StringIO(content))
 
-# Check if browser was forced to reset via back button URL parameter trigger
+# Check query parameter reset trigger
 if "reset" in st.query_params:
     st.query_params.clear()
     travel_date = st.date_input("Date of Travel", datetime.date.today())
 else:
     travel_date = st.date_input("Date of Travel", datetime.date.today())
+
+# Arm the lock again if the user switches to a completely different date
+if st.session_state.last_processed_date != str(travel_date):
+    st.session_state.disable_lock = False
+    st.session_state.last_processed_date = str(travel_date)
 
 date_exists = False
 if not df_existing.empty:
@@ -134,17 +143,16 @@ else:
 # --- RENDER CONDITIONAL ENTRY INTERFACE BASED ON LOCK STATUS ---
 st.markdown("<br>", unsafe_allow_html=True)
 
-# PRIORITY 1: Handle Success Intermission
+# PRIORITY 1: Handle Success Intermission Display
 if st.session_state.just_saved:
     st.success(st.session_state.saved_message)
     st.session_state.just_saved = False
     st.session_state.saved_message = ""
     time.sleep(2.5)
-    st.query_params["reset"] = "true"
     st.rerun()
 
-# PRIORITY 2: Hard Lock Screen Check
-elif date_exists and not is_admin_authenticated:
+# PRIORITY 2: Hard Lock Screen Check (Only fires if lock isn't temporarily disabled for this session)
+elif date_exists and not is_admin_authenticated and not st.session_state.disable_lock:
     st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
     st.markdown(f"""
         <div class="lock-banner">
@@ -155,14 +163,13 @@ elif date_exists and not is_admin_authenticated:
         </div>
     """, unsafe_allow_html=True)
     
-    # Force query string hard reload on click to drop phone memory cache completely
     st.markdown('<div class="back-btn">', unsafe_allow_html=True)
     if st.button("🔙 GO BACK TO TODAY"):
         st.query_params["reset"] = "true"
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# PRIORITY 3: Render standard input parameters
+# PRIORITY 3: Standard Input Form
 else:
     if date_exists and is_admin_authenticated:
         st.warning(f"⚠️ Mode: Admin Override Active. Saving will overwrite the existing entry for {travel_date}.")
@@ -216,6 +223,9 @@ else:
             }
             custom_message = praise_map.get(driver, f"🎉 Trip successfully saved for driver {driver}!")
             
+            # Lock out the warning screen from loading immediately after saving
             st.session_state.just_saved = True
             st.session_state.saved_message = custom_message
+            st.session_state.disable_lock = True
+            st.session_state.last_processed_date = str(travel_date)
             st.rerun()
