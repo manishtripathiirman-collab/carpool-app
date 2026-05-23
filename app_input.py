@@ -161,18 +161,3 @@ else:
             df_cleaned = df_existing[df_existing["Date"].astype(str) != str(travel_date)]
             df_final = pd.concat([df_cleaned, new_row], ignore_index=True)
         else:
-            df_final = new_row
-            
-        csv_buffers = df_final.to_csv(index=False)
-        
-        r_exist = requests.get(URL, headers=HEADERS)
-        sha = r_exist.json()["sha"] if r_exist.status_code == 200 else None
-        
-        payload = {
-            "message": f"Update carpool records for {travel_date}",
-            "content": base64.b64encode(csv_buffers.encode("utf-8")).decode("utf-8")
-        }
-        if sha: payload["sha"] = sha
-            
-        r_put = requests.put(URL, headers=HEADERS, json=payload)
-        if r_put.status_code in
