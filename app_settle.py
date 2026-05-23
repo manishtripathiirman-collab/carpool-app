@@ -61,19 +61,21 @@ URL_EXPENSES = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.c
 df_trips = pd.DataFrame()
 df_expenses = pd.DataFrame()
 
-# Fetch Trips
+# Fetch Trips Database
 r_trips = requests.get(f"{URL_TRIPS}?ts={time.time()}", headers=HEADERS)
 if r_trips.status_code == 200:
     content_trips = base64.b64decode(r_trips.json()["content"]).decode("utf-8")
     df_trips = pd.read_csv(io.StringIO(content_trips))
-    df_trips['Clean_Date'] = pd.to_datetime(df_trips['Date']).dt.date
+    if not df_trips.empty:
+        df_trips['Clean_Date'] = pd.to_datetime(df_trips['Date']).dt.date
 
-# Fetch Expenses
+# Fetch Expenses Database
 r_expenses = requests.get(f"{URL_EXPENSES}?ts={time.time()}", headers=HEADERS)
 if r_expenses.status_code == 200:
     content_expenses = base64.b64decode(r_expenses.json()["content"]).decode("utf-8")
     df_expenses = pd.read_csv(io.StringIO(content_expenses))
-    df_expenses['Clean_Date'] = pd.to_datetime(df_expenses['Date']).dt.date
+    if not df_expenses.empty:
+        df_expenses['Clean_Date'] = pd.to_datetime(df_expenses['Date']).dt.date
 
 if not df_trips.empty:
     tab_settle, tab_charts = st.tabs(["💵 Settlements", "📊 Expense Dashboard"])
@@ -89,11 +91,11 @@ if not df_trips.empty:
         with st.expander(f"📱 View Logged Travel History ({len(filtered_trips)} Days)", expanded=False):
             st.dataframe(filtered_trips.sort_values(by="Clean_Date", ascending=False), use_container_width=True, hide_index=True)
             
-        # Isolate tracking structures
+        # Isolate calculation layers
         carpool_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
         other_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
         
-        # 1. PROCESS DAILY CARPOOL LOGS (ONLY)
+        # 1. PROCESS DAILY CARPOOL LOGS
         for _, row in filtered_trips.iterrows():
             driver_matched = str(row['Driver']).strip().title()
             if driver_matched not in commuters: continue
@@ -108,7 +110,7 @@ if not df_trips.empty:
                 if p in commuters and p != driver_matched:
                     carpool_debts[p][driver_matched] += 150.0
 
-        # 2. PROCESS OTHER NON-CARPOOL EXPENSES
+        # 2. PROCESS OTHER SHAPED SYSTEM BILLS (WITH FIXED LOOKUPS)
         total_period_expenses = 0.0
         if not df_expenses.empty:
             filtered_expenses = df_expenses[(df_expenses['Clean_Date'] >= start_date) & (df_expenses['Clean_Date'] <= end_date)]
@@ -119,6 +121,7 @@ if not df_trips.empty:
                     st.dataframe(filtered_expenses.sort_values(by="Clean_Date", ascending=False), use_container_width=True, hide_index=True)
                 
                 for _, row in filtered_expenses.iterrows():
+                    # Clean lookups to prevent parsing failure drops
                     payer = str(row['Paid By']).strip().title()
                     per_head = float(row['Per Head Cost'])
                     consumers = [p.strip().title() for p in str(row['Shared By']).split(',') if p.strip()]
@@ -127,7 +130,7 @@ if not df_trips.empty:
                         if p in commuters and p != payer:
                             other_debts[p][payer] += per_head
 
-        # 3. CALCULATE CARPOOL SETTLEMENTS
+        # 3. CALCULATE CARPOOL MATRICES SETTLEMENTS
         cp_settlements = []
         for i in range(len(commuters)):
             for j in range(i + 1, len(commuters)):
@@ -142,7 +145,7 @@ if not df_trips.empty:
                     net = p2_owes - p1_owes
                     if net > 0: cp_settlements.append({"From": p2, "To": p1, "Amount": net})
 
-        # 4. CALCULATE OTHER EXPENSES SETTLEMENTS
+        # 4. CALCULATE INDEPENDENT EXPENSE SETTLEMENTS
         misc_settlements = []
         for i in range(len(commuters)):
             for j in range(i + 1, len(commuters)):
@@ -157,7 +160,7 @@ if not df_trips.empty:
                     net = p2_owes - p1_owes
                     if net > 0: misc_settlements.append({"From": p2, "To": p1, "Amount": net})
 
-        # --- DISPLAY BLOCK 1: CARPOOL RUN PAYOUTS ---
+        # --- DISPLAY BLOCK 1: CARPOOL ---
         st.markdown("### 🚗 1. Carpool Travel Settlements")
         if cp_settlements:
             for s in cp_settlements:
@@ -171,7 +174,7 @@ if not df_trips.empty:
         else:
             st.info("No carpool payout dues across this frame window.")
 
-        # --- DISPLAY BLOCK 2: OTHER BILLS PAYOUTS ---
+        # --- DISPLAY BLOCK 2: EXPENSES ---
         st.markdown("### 🍔 2. Other Expense Settlements")
         if misc_settlements:
             for s in misc_settlements:
@@ -185,7 +188,7 @@ if not df_trips.empty:
         else:
             st.info("No miscellaneous shared bills dues across this frame window.")
             
-        # --- SEPARATED WHATSAPP SUMMARY GENERATION ---
+        # --- WHATSAPP TEXT FORMATTER ---
         whatsapp_text = f"🚗 *Carpool Dues Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
         if cp_settlements:
             for s in cp_settlements: 
@@ -211,43 +214,22 @@ if not df_trips.empty:
             </a>
         """, unsafe_allow_html=True)
 
-    # 🌟 DASHBOARD GRAPHICS ENGINE 🌟
+    # 🌟 GRAPHICS ANALYTICS ENGINE 🌟
     with tab_charts:
         st.markdown("### 📊 Pool Expense Analytics")
-        
         total_trips = len(df_trips)
         approx_savings = total_trips * 4 * 250 
         
         m_col1, m_col2 = st.columns(2)
-        with m_col1:
-            st.metric(label="Total Trips Run", value=f"{total_trips} Days")
-        with m_col2:
-            st.metric(label="Est. Group Savings", value=f"₹{approx_savings:,}")
+        with m_col1: st.metric(label="Total Trips Run", value=f"{total_trips} Days")
+        with m_col2: st.metric(label="Est. Group Savings", value=f"₹{approx_savings:,}")
             
         st.markdown("---")
-        
         st.markdown("#### 🚘 Driver Frequency Leaderboard")
         driver_counts = df_trips['Driver'].value_counts()
         driver_chart_data = pd.DataFrame(0, index=commuters, columns=['Trips Driven'])
         for comm in commuters:
-            if comm in driver_counts.index:
-                driver_chart_data.loc[comm, 'Trips Driven'] = driver_counts[comm]
+            if comm in driver_counts.index: driver_chart_data.loc[comm, 'Trips Driven'] = driver_counts[comm]
         st.bar_chart(driver_chart_data)
-        
-        st.markdown("#### 💸 Gross Passenger Spending (Owed to Pool)")
-        passenger_spending = {c: 0.0 for c in commuters}
-        
-        for _, row in df_trips.iterrows():
-            dr = str(row['Driver']).strip().title()
-            full_p = [p.strip().title() for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
-            half_p = [p.strip().title() for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
-            
-            for p in full_p:
-                if p in passenger_spending and p != dr: passenger_spending[p] += 300.0
-            for p in half_p:
-                if p in passenger_spending and p != dr: passenger_spending[p] += 150.0
-                
-        spending_df = pd.DataFrame.from_dict(passenger_spending, orient='index', columns=['Total Cost (₹)'])
-        st.bar_chart(spending_df)
 else:
     st.info("Log database file is empty.")
