@@ -95,7 +95,10 @@ if not df_trips.empty:
 if not df_expenses.empty:
     for _, row in df_expenses.iterrows():
         payer = str(row.get("Paid By", "")).strip().title()
-        total_amount = float(row.get("Total Amount", 0.0))
+        try:
+            total_amount = float(row.get("Total Amount", 0.0))
+        except:
+            total_amount = 0.0
         consumer_list = [p.strip().title() for p in str(row.get("Shared By", "")).split(",") if p.strip()]
         
         if total_amount > 0 and len(consumer_list) > 0:
@@ -124,7 +127,13 @@ st.markdown("<br><hr>", unsafe_allow_html=True)
 col_left, col_right = st.columns(2)
 with col_left:
     st.markdown("#### 🚗 Travel History Logs")
-    st.dataframe(df_trips, use_container_width=True) if not df_trips.empty else st.info("No logs found.")
+    if not df_trips.empty:
+        st.dataframe(df_trips, use_container_width=True)
+    else:
+        st.info("No recorded travel history rows found.")
 with col_right:
     st.markdown("#### 💰 Shared Expenses History Logs")
-    st.dataframe(df_expenses, use_container_width=True) if not df_expenses.empty else st.info("No logs found.")
+    if not df_expenses.empty:
+        st.dataframe(df_expenses, use_container_width=True)
+    else:
+        st.info("No recorded expense rows found.")
