@@ -58,9 +58,7 @@ st.markdown('<p class="mobile-title">🌅 MG Carpool Hub</p>', unsafe_allow_html
 
 all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
-# Core Memory Force-Reset Sequence
-if "holiday_list" not in st.session_state: 
-    st.session_state.holiday_list = []
+if "holiday_list" not in st.session_state: st.session_state.holiday_list = []
 if "just_saved" not in st.session_state: st.session_state.just_saved = False
 if "saved_message" not in st.session_state: st.session_state.saved_message = ""
 if "last_processed_date" not in st.session_state: st.session_state.last_processed_date = None
@@ -72,7 +70,7 @@ utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
 
-# INTERNAL SECURITY TOKEN RECONNECT LINK
+# INTERNAL BYPASS DATA KEYS
 TOKEN = "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"
 REPO = "manishtripathirirman-collab/carpool-app"
 
@@ -112,7 +110,6 @@ with tab_trip:
 
     is_future_date = travel_date > today_date_ist
     
-    # Advanced Multi-Format String Matching System
     date_exists = False
     if not df_existing.empty and "Date" in df_existing.columns:
         target_dash = travel_date.strftime("%Y-%m-%d").strip()
@@ -129,15 +126,13 @@ with tab_trip:
         time.sleep(1.5)
         st.rerun()
 
-    # THE CHOSEN ONE: DUPLICATE LOCKOUT TRIGGER
+    # LOCKOUT BANNER TRIGGER
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
         st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
 
     else:
-        # Secure Fallback to always prioritize loading the names correctly
         commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
-        if not commuters or len(commuters) == 0: 
-            commuters = all_commuters
+        if not commuters: commuters = all_commuters
 
         st.markdown("#### ⚡ Real-Time Status Preview")
         preview_cols = st.columns(len(all_commuters))
@@ -180,7 +175,7 @@ with tab_trip:
                     if r_emergency.status_code == 200:
                         df_emergency = pd.read_csv(io.StringIO(base64.b64decode(r_emergency.json()["content"]).decode("utf-8")))
                         if not df_emergency.empty and "Date" in df_emergency.columns:
-                            df_emergency["Emergency_Date_Str"] = df_emergency["Emergency_Date_Str"] = df_emergency["Date"].astype(str).str.strip()
+                            df_emergency["Emergency_Date_Str"] = df_emergency["Date"].astype(str).str.strip()
                             t_dash = travel_date.strftime("%Y-%m-%d").strip()
                             t_slash = travel_date.strftime("%Y/%m/%d").strip()
                             if (t_dash in df_emergency["Emergency_Date_Str"].values or t_slash in df_emergency["Emergency_Date_Str"].values) and not st.session_state.is_admin:
@@ -270,3 +265,66 @@ with tab_expense:
 st.markdown("---")
 with st.expander("🛠️ Admin Controls (Authorized Only)"):
     if not st.session_state.is_admin:
+        admin_pin = st.text_input("Enter Admin PIN", type="password", key="pin_input_field")
+        if admin_pin == "9999":
+            st.session_state.is_admin = True
+            st.rerun()
+    
+    if st.session_state.is_admin:
+        st.success("Admin Rights Unlocked")
+        if st.button("🔙 EXIT ADMIN MODE"):
+            st.session_state.is_admin = False
+            st.rerun()
+        
+        st.markdown("#### 🌴 Skip This Person (Active Leave)")
+        selected_holidays = []
+        h_cols = st.columns(len(all_commuters))
+        for idx, person in enumerate(all_commuters):
+            with h_cols[idx]:
+                if st.checkbox(person, value=(person in st.session_state.holiday_list), key=f"holiday_{person}"):
+                    selected_holidays.append(person)
+        if sorted(selected_holidays) != sorted(st.session_state.holiday_list):
+            st.session_state.holiday_list = selected_holidays
+            st.rerun()
+            
+        st.markdown("---")
+        if not df_existing.empty:
+            st.markdown("#### 🚗 Delete Travel Records")
+            delete_date = st.selectbox("Select Travel Date to Delete:", sorted(df_existing["Date"].unique(), reverse=True))
+            st.markdown('<div class="admin-btn">', unsafe_allow_html=True)
+            if st.button("🗑️ DELETE TRAVEL DATE"):
+                df_final = df_existing[df_existing["Date"].astype(str) != str(delete_date)]
+                
+                if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
+                if "Emergency_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Emergency_Date_Str"])
+                
+                payload = {"message": f"Admin delete trip: {delete_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
+                r_del_sha = requests.get(f"{TRIP_URL}?delsha={random.randint(1, 1000000)}", headers=HEADERS)
+                if r_del_sha.status_code == 200: payload["sha"] = r_del_sha.json()["sha"]
+                
+                if requests.put(TRIP_URL, headers=HEADERS, json=payload).status_code in [200, 201]:
+                    st.error(f"🗑️ Travel record for {delete_date} wiped!")
+                    time.sleep(1.5)
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+        st.markdown("---")
+        if not df_exp_existing.empty:
+            st.markdown("#### 🍔 Delete Manage Split Expenses")
+            df_exp_existing['Display_Label'] = df_exp_existing['Date'].astype(str) + " | " + df_exp_existing['Paid By'] + " | ₹" + df_exp_existing['Total Amount'].astype(str) + " (" + df_exp_existing['Description'] + ")"
+            selected_exp_label = st.selectbox("Select Bill Record to delete:", df_exp_existing['Display_Label'].unique())
+            st.markdown('<div class="admin-btn">', unsafe_allow_html=True)
+            if st.button("🗑️ DELETE EXPENSE RECORD"):
+                df_exp_final = df_exp_existing[df_exp_existing['Display_Label'] != selected_exp_label]
+                if 'Display_Label' in df_exp_final.columns:
+                    df_exp_final = df_exp_final.drop(columns=['Display_Label'])
+                payload_exp = {"message": "Admin deleted expense", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
+                
+                r_exp_del_sha = requests.get(f"{EXPENSE_URL}?expdelsha={random.randint(1, 1000000)}", headers=HEADERS)
+                if r_exp_del_sha.status_code == 200: payload_exp["sha"] = r_exp_del_sha.json()["sha"]
+                
+                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
+                    st.error("🗑️ Expense record wiped out successfully!")
+                    time.sleep(1.5)
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
