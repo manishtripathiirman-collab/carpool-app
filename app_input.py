@@ -9,7 +9,7 @@ import random
 
 st.set_page_config(page_title="MG Logger", page_icon="🚗", layout="centered")
 
-# Visual Engine: Pure Dark Layout with Label Auto-Scale & Anti-Truncation Engine
+# Visual Engine: Pure Dark Layout with Fixed Icon Selector Rules
 st.markdown(
     """
     <style>
@@ -28,14 +28,13 @@ st.markdown(
     }
     .mobile-title { font-family: sans-serif; font-size: 24px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 20px; }
     
-    label, p, span, h2, h3, h4 { 
+    /* 📋 Balanced Typography Selection Rules - Prevents Icon Text Overrides */
+    div[data-testid="stWidgetLabel"] p, 
+    div[data-testid="stMarkdownContainer"] p, 
+    div[data-testid="stTab"] p,
+    .block-container h2, .block-container h3, .block-container h4 { 
         color: #F1F5F9 !important; 
         font-weight: 700 !important;
-        white-space: normal !important;
-        word-break: break-word !important;
-        display: inline-block !important;
-    }
-    div[data-testid="stWidgetLabel"] {
         white-space: normal !important;
         word-break: break-word !important;
     }
@@ -248,7 +247,6 @@ with tab_expense:
         t_dash_e = exp_date.strftime("%Y-%m-%d").strip()
         t_slash_e = exp_date.strftime("%Y/%m/%d").strip()
         
-        # FIXED: Initialize an empty template with correct fallback headers if file doesn't exist yet
         date_matches = pd.DataFrame(columns=["Date", "Description", "Paid By", "Total Amount", "Shared By"])
         
         if not df_exp_existing.empty and "Date" in df_exp_existing.columns:
