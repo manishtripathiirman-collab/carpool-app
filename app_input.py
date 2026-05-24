@@ -15,66 +15,123 @@ st.markdown("""
     .stApp {
         background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(244, 63, 94, 0.2) 50%, rgba(15, 23, 42, 0.95) 100%), 
                     url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80') !important;
-        background-size: cover !important; 
-        background-position: center !important; 
-        background-attachment: fixed !important;
+        background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
     }
-    
     /* Central Content Shield */
     .block-container {
-        background: rgba(15, 23, 42, 0.88) !important;
-        backdrop-filter: blur(16px);
-        padding: 25px !important;
-        border-radius: 24px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        box-shadow: 0px 15px 35px rgba(0, 0, 0, 0.6);
-        margin-top: 30px !important;
+        background: rgba(15, 23, 42, 0.88) !important; backdrop-filter: blur(16px);
+        padding: 25px !important; border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0px 15px 35px rgba(0, 0, 0, 0.6); margin-top: 30px !important;
     }
-    
-    /* Typography Engine */
     .mobile-title { font-family: sans-serif; font-size: 28px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 20px; }
     label, p, span, h2, h3, h4 { color: #F1F5F9 !important; font-weight: 700 !important; }
     
     /* Input Form Boxes Style Controls */
     div[data-baseweb="select"], div[data-baseweb="base-input"], .stDateInput div, .stSelectbox div { 
-        background-color: #1E293B !important; 
-        border-radius: 12px !important; 
-        border: 1px solid rgba(255, 255, 255, 0.3) !important; 
+        background-color: #1E293B !important; border-radius: 12px !important; border: 1px solid rgba(255, 255, 255, 0.3) !important; 
     }
-    
-    /* Ensure all text values, labels, and icons inside select fields stay bright white */
     div[data-baseweb="select"] *, div[data-baseweb="base-input"] *, .stDateInput div *, .stSelectbox div * { 
         color: #FFFFFF !important; 
     }
-    
-    /* Fix the placeholder 'Choose options' text color */
-    div[data-baseweb="select"] div div:dfn { color: #94A3B8 !important; }
-    
-    /* Dropdown Option Selection List Popovers */
+    div[data-baseweb="select"] [data-user-value="true"], .stSelectbox div [data-baseweb="select"] span { 
+        color: #FFFFFF !important; font-weight: 700 !important;
+    }
     div[role="listbox"] { background-color: #1E293B !important; border: 1px solid rgba(255,255,255,0.3) !important; }
     div[role="listbox"] li { color: #FFFFFF !important; font-weight: 700 !important; }
     div[role="listbox"] li:hover { background-color: #334155 !important; }
-    
-    /* Multi-select individual passenger tags */
     div[data-baseweb="tag"] { background-color: #334155 !important; border-radius: 6px; }
     div[data-baseweb="tag"] span { color: #FFFFFF !important; }
     
-    /* Tab Headers Structural Adjustments */
     .stTabs [data-baseweb="tab-list"] { gap: 10px; margin-bottom: 15px; }
     .stTabs [data-baseweb="tab"] { background-color: rgba(30, 41, 59, 0.9) !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 10px 10px 0px 0px; padding: 12px 24px !important; color: #94A3B8 !important; font-weight: 700; }
     .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #6366F1, #4F46E5) !important; color: white !important; border-color: #6366F1 !important; }
     
-    /* Button Matrix */
     div.stButton > button { width: 100%; background: linear-gradient(90deg, #6366F1, #EC4899) !important; color: white !important; border-radius: 14px; font-weight: 800; padding: 14px; border: none !important; box-shadow: 0px 4px 15px rgba(236, 72, 153, 0.4); }
     .admin-btn > div.stButton > button { background: linear-gradient(90deg, #EF4444, #DC2626) !important; box-shadow: 0px 4px 12px rgba(239, 68, 68, 0.4); }
     .back-btn > div.stButton > button { background: rgba(51, 65, 85, 0.9) !important; border: 1px solid rgba(255,255,255,0.2) !important; margin-top: 15px; box-shadow: none; }
     .exit-admin-btn > div.stButton > button { background: #0F172A !important; border: 1px solid rgba(255,255,255,0.1) !important; margin-top: 10px; color: #E2E8F0 !important; }
     
-    /* Neon Status Badge System */
     .neon-badge { display: inline-block; padding: 6px 14px; font-size: 11px; font-weight: 900; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
     .badge-driver { background-color: rgba(34, 197, 94, 0.25); color: #4ADE80; border: 1px solid #22C55E; box-shadow: 0 0 12px rgba(34,197,94,0.4); }
     .badge-full { background-color: rgba(56, 189, 248, 0.25); color: #38BDF8; border: 1px solid #0EA5E9; box-shadow: 0 0 12px rgba(56,189,248,0.4); }
     .badge-half { background-color: rgba(251, 191, 36, 0.25); color: #FBBF24; border: 1px solid #D97706; box-shadow: 0 0 12px rgba(251,191,36,0.4); }
     .badge-holiday { background-color: rgba(168, 85, 247, 0.25); color: #C084FC; border: 1px solid #9333EA; }
-    
-    .lock-banner { background-color: #0F172A; border: 2px solid #EF44
+    .lock-banner { background-color: #0F172A; border: 2px solid #EF4444; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
+    .future-banner { background-color: #0F172A; border: 2px solid #EAB308; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 0 20px rgba(234, 179, 8, 0.3); }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown('<p class="mobile-title">🌅 MG Carpool Hub</p>', unsafe_allow_html=True)
+
+all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
+
+if "holiday_list" not in st.session_state: st.session_state.holiday_list = []
+if "just_saved" not in st.session_state: st.session_state.just_saved = False
+if "saved_message" not in st.session_state: st.session_state.saved_message = ""
+if "last_processed_date" not in st.session_state: st.session_state.last_processed_date = None
+if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
+if "is_admin" not in st.session_state: st.session_state.is_admin = False
+
+utc_now = datetime.datetime.utcnow()
+ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
+today_date_ist = ist_now.date()
+
+TOKEN = st.secrets.get("GITHUB_TOKEN", "")
+REPO = st.secrets.get("GITHUB_REPO", "")
+HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json"}
+
+TRIP_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
+EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
+
+df_existing = pd.DataFrame()
+df_exp_existing = pd.DataFrame()
+
+if TOKEN and REPO:
+    r = requests.get(f"{TRIP_URL}?ts={time.time()}", headers=HEADERS)
+    if r.status_code == 200:
+        df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
+    r_e = requests.get(f"{EXPENSE_URL}?ts={time.time()}", headers=HEADERS)
+    if r_e.status_code == 200:
+        df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
+
+tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
+
+with tab_trip:
+    if "reset" in st.query_params:
+        st.query_params.clear()
+        travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_reset")
+    else:
+        travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_norm")
+
+    if st.session_state.last_processed_date != str(travel_date):
+        st.session_state.disable_lock = False
+        st.session_state.last_processed_date = str(travel_date)
+
+    is_future_date = travel_date > today_date_ist
+    date_exists = str(travel_date) in df_existing["Date"].astype(str).values if not df_existing.empty else False
+
+    if is_future_date:
+        st.warning("⏳ FUTURE TRIPS NOT ALLOWED")
+        st.markdown("""
+            <div class="future-banner">
+                <span style="font-size: 45px;">🔮</span>
+                <h2 style="color: #EAB308; margin-top: 10px; font-weight:800; font-family:sans-serif;">Ye kam bhi Loudu ka hi hai</h2>
+                <h4 style="color: #F8FAFC; font-weight: 700; margin-top: 5px;">You cannot log entries for future dates.</h4>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown('<div class="back-btn">', unsafe_allow_html=True)
+        if st.button("🔙 GO BACK TO TODAY", key="future_back_btn"):
+            st.query_params["reset"] = "true"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    elif st.session_state.just_saved:
+        st.success(st.session_state.saved_message)
+        st.session_state.just_saved = False
+        time.sleep(2.0)
+        st.rerun()
+
+    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
+        st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
+        st.markdown(f"""
+            <div class="lock-banner">
