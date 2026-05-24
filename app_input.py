@@ -69,9 +69,9 @@ utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
 
-# MASTER BYPASS DATA CONNECTION
-TOKEN = "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"
-REPO = "manishtripathirirman-collab/carpool-app"
+# SECURE SECTIONS LOADING FROM STREAMLIT VAULT
+TOKEN = st.secrets.get("GITHUB_TOKEN", "")
+REPO = st.secrets.get("GITHUB_REPO", "")
 
 HEADERS = {
     "Authorization": f"token {TOKEN}",
@@ -110,85 +110,4 @@ with tab_trip:
     is_future_date = travel_date > today_date_ist
     
     date_exists = False
-    if not df_existing.empty and "Date" in df_existing.columns:
-        target_str = travel_date.strftime("%Y-%m-%d").strip()
-        df_existing["Cleaned_Date_Str"] = pd.to_datetime(df_existing["Date"], errors='coerce').dt.strftime("%Y-%m-%d").str.strip()
-        date_exists = target_str in df_existing["Cleaned_Date_Str"].values
-
-    if is_future_date:
-        st.markdown("<div class='future-banner'><h1 style='font-size:50px;margin:0;'>🔮</h1><h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;'>Ye kam bhi Loudu ka hi hai</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>You cannot log entries for future dates.</h4></div>", unsafe_allow_html=True)
-
-    elif st.session_state.just_saved:
-        st.success(st.session_state.saved_message)
-        st.session_state.just_saved = False
-        time.sleep(1.5)
-        st.rerun()
-
-    # THE CHOSEN ONE: BRINGING THE LOUDU LOCKOUT BANNER HOME
-    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
-        st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
-
-    else:
-        commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
-        if not commuters: commuters = all_commuters
-
-        st.markdown("#### ⚡ Real-Time Status Preview")
-        preview_cols = st.columns(len(all_commuters))
-        
-        t_driver = st.session_state.get("temp_driver", commuters[0])
-        t_full = st.session_state.get("temp_full", [])
-        t_half = st.session_state.get("temp_half", [])
-
-        for idx, person in enumerate(all_commuters):
-            with preview_cols[idx]:
-                st.markdown(f"<div style='text-align: center; font-weight: 800; color: #FFFFFF;'>{person}</div>", unsafe_allow_html=True)
-                if person in st.session_state.holiday_list:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-holiday">🌴 Leave</span></div>', unsafe_allow_html=True)
-                elif person == t_driver:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-driver">👑 Wheel</span></div>', unsafe_allow_html=True)
-                elif person in t_full:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-full">🚗 Full</span></div>', unsafe_allow_html=True)
-                elif person in t_half:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-half">🌤️ Half</span></div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('<div style="text-align:center; color:rgba(255,255,255,0.4); font-size:11px;">---</div>', unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
-        st.session_state.temp_driver = driver
-        
-        passenger_options = [c for c in commuters if c != driver]
-        full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
-        st.session_state.temp_full = full_day
-        
-        half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
-        st.session_state.temp_half = half_day
-
-        if st.button("💾 SAVE TRIP TO LEDGER"):
-            is_valid_submission = True
-            if TOKEN and REPO:
-                try:
-                    r_emergency = requests.get(f"{TRIP_URL}?final_check={random.randint(1, 1000000)}", headers=HEADERS)
-                    if r_emergency.status_code == 200:
-                        df_emergency = pd.read_csv(io.StringIO(base64.b64decode(r_emergency.json()["content"]).decode("utf-8")))
-                        if not df_emergency.empty and "Date" in df_emergency.columns:
-                            t_emergency_str = travel_date.strftime("%Y-%m-%d").strip()
-                            df_emergency["Emergency_Date_Str"] = pd.to_datetime(df_emergency["Date"], errors='coerce').dt.strftime("%Y-%m-%d").str.strip()
-                            if t_emergency_str in df_emergency["Emergency_Date_Str"].values and not st.session_state.is_admin:
-                                is_valid_submission = False
-                except Exception:
-                    pass
-
-            if not is_valid_submission:
-                st.error("🛑 Log alert! Entry exists. Refreshing workspace...")
-                time.sleep(2)
-                st.rerun()
-            else:
-                full_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
-                half_str = ", ".join([p.strip().title() for p in half_day]) if half_day else "None"
-                
-                new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver.strip().title(), "Full Day Passengers": full_str, "Half Day Passengers": half_str}])
-                df_final = pd.concat([df_existing[df_existing["Date"].astype(str) != str(travel_date)], new_row], ignore_index=True) if not df_existing.empty else new_row
-                
-                if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
+    if not df_existing
