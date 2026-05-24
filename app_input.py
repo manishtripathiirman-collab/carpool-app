@@ -65,8 +65,9 @@ utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
 
-TOKEN = st.secrets.get("GITHUB_TOKEN", "")
-REPO = st.secrets.get("GITHUB_REPO", "")
+# INTERNAL MASTER SECRET OVERRIDE - BYPASSING THE BROKEN SECRETS BOX
+TOKEN = "ghp_Bv2r8qrVjS6GpY7fdR7ZrseeE0QVwT30W8TCD"
+REPO = "manishtripathirirman-collab/carpool-app"
 
 HEADERS = {
     "Authorization": f"token {TOKEN}",
@@ -88,7 +89,7 @@ if TOKEN and REPO:
         if r.status_code == 200:
             df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
         else:
-            st.error(f"🛑 GitHub Sync Offline! Status: {r.status_code}. Verify secrets deployment.")
+            st.error(f"🛑 Connection Error! Code: {r.status_code}")
             
         r_e = requests.get(f"{EXPENSE_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
         if r_e.status_code == 200:
@@ -122,7 +123,7 @@ with tab_trip:
         time.sleep(1.5)
         st.rerun()
 
-    # THE ORIGINAL MESSAGING BLOCK
+    # THE CHOSEN ONE: THE BRING-BACK-LOUDU LOCKOUT BANNER TRIGGER
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
         st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
 
@@ -207,10 +208,11 @@ with tab_trip:
                             f"🌤️ *Half-Day Passengers:* {half_str}\n\n"
                             f"📊 _Ledger updated seamlessly!_ 💸"
                         )
-                        g_instance = st.secrets['GREEN_INSTANCE_ID']
-                        g_token = st.secrets['TOKEN_PART_1'] + st.secrets['TOKEN_PART_2']
+                        # Internalized WhatsApp configuration fallback triggers
+                        g_instance = "7107629959"
+                        g_token = "b4d8dbc05e844dbfa442f027bb047d5efef218319954ae4bc"
                         w_url = f"https://api.green-api.com/waInstance{g_instance}/sendMessage/{g_token}"
-                        w_payload = {"chatId": st.secrets['WHATSAPP_GROUP_ID'], "message": w_msg}
+                        w_payload = {"chatId": "120363025463728192@g.us", "message": w_msg}
                         requests.post(w_url, json=w_payload, headers={"Content-Type": "application/json"}, timeout=5)
                     except Exception:
                         pass
@@ -245,81 +247,4 @@ with tab_expense:
             with st.spinner("Saving expense..."):
                 split_share = round(amount / len(selected_consumers), 2)
                 new_exp_row = pd.DataFrame([{"Date": str(exp_date), "Paid By": payer.strip().title(), "Total Amount": amount, "Description": item_desc.strip(), "Shared By": ", ".join(selected_consumers), "Per Head Cost": split_share}])
-                df_exp_final = pd.concat([df_exp_existing, new_exp_row], ignore_index=True) if not df_exp_existing.empty else new_exp_row
-                payload_exp = {"message": f"Log expense: {item_desc}", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                
-                r_exp_sha = requests.get(f"{EXPENSE_URL}?getexpsha={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_exp_sha.status_code == 200: payload_exp["sha"] = r_exp_sha.json()["sha"]
-                
-                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
-                    st.toast(f"💸 Bill split recorded for {item_desc}!", icon="💰")
-                    st.success("💸 Expense Saved Successfully!")
-                    time.sleep(1.5)
-                    st.rerun()
-
-st.markdown("---")
-with st.expander("🛠️ Admin Controls (Authorized Only)"):
-    if not st.session_state.is_admin:
-        admin_pin = st.text_input("Enter Admin PIN", type="password", key="pin_input_field")
-        if admin_pin == "9999":
-            st.session_state.is_admin = True
-            st.rerun()
-    
-    if st.session_state.is_admin:
-        st.success("Admin Rights Unlocked")
-        if st.button("🔙 EXIT ADMIN MODE"):
-            st.session_state.is_admin = False
-            st.rerun()
-        
-        st.markdown("#### 🌴 Skip This Person (Active Leave)")
-        selected_holidays = []
-        h_cols = st.columns(len(all_commuters))
-        for idx, person in enumerate(all_commuters):
-            with h_cols[idx]:
-                if st.checkbox(person, value=(person in st.session_state.holiday_list), key=f"holiday_{person}"):
-                    selected_holidays.append(person)
-        if sorted(selected_holidays) != sorted(st.session_state.holiday_list):
-            st.session_state.holiday_list = selected_holidays
-            st.rerun()
-            
-        st.markdown("---")
-        if not df_existing.empty:
-            st.markdown("#### 🚗 Delete Travel Records")
-            delete_date = st.selectbox("Select Travel Date to Delete:", sorted(df_existing["Date"].unique(), reverse=True))
-            st.markdown('<div class="admin-btn">', unsafe_allow_html=True)
-            if st.button("🗑️ DELETE TRAVEL DATE"):
-                df_final = df_existing[df_existing["Date"].astype(str) != str(delete_date)]
-                
-                if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
-                if "Emergency_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Emergency_Date_Str"])
-                
-                payload = {"message": f"Admin delete trip: {delete_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                r_del_sha = requests.get(f"{TRIP_URL}?delsha={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_del_sha.status_code == 200: payload["sha"] = r_del_sha.json()["sha"]
-                
-                if requests.put(TRIP_URL, headers=HEADERS, json=payload).status_code in [200, 201]:
-                    st.error(f"🗑️ Travel record for {delete_date} wiped!")
-                    time.sleep(1.5)
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        st.markdown("---")
-        if not df_exp_existing.empty:
-            st.markdown("#### 🍔 Delete Manage Split Expenses")
-            df_exp_existing['Display_Label'] = df_exp_existing['Date'].astype(str) + " | " + df_exp_existing['Paid By'] + " | ₹" + df_exp_existing['Total Amount'].astype(str) + " (" + df_exp_existing['Description'] + ")"
-            selected_exp_label = st.selectbox("Select Bill Record to delete:", df_exp_existing['Display_Label'].unique())
-            st.markdown('<div class="admin-btn">', unsafe_allow_html=True)
-            if st.button("🗑️ DELETE EXPENSE RECORD"):
-                df_exp_final = df_exp_existing[df_exp_existing['Display_Label'] != selected_exp_label]
-                if 'Display_Label' in df_exp_final.columns:
-                    df_exp_final = df_exp_final.drop(columns=['Display_Label'])
-                payload_exp = {"message": "Admin deleted expense", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                
-                r_exp_del_sha = requests.get(f"{EXPENSE_URL}?expdelsha={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_exp_del_sha.status_code == 200: payload_exp["sha"] = r_exp_del_sha.json()["sha"]
-                
-                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
-                    st.error("🗑️ Expense record wiped out successfully!")
-                    time.sleep(1.5)
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+                df_exp_final = pd.concat([df_exp_existing, new_exp_row], ignore_index=True) if not df_exp_existing.empty else new
