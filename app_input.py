@@ -138,43 +138,4 @@ with tab_trip:
                 elif person == t_driver:
                     st.markdown('<div style="text-align:center;"><span class="neon-badge badge-driver">👑 Wheel</span></div>', unsafe_allow_html=True)
                 elif person in t_full:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-full">🚗 Full</span></div>', unsafe_allow_html=True)
-                elif person in t_half:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-half">🌤️ Half</span></div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('<div style="text-align:center; color:rgba(255,255,255,0.4); font-size:11px; margin-top:5px;">---</div>', unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
-        st.session_state.temp_driver = driver
-        
-        passenger_options = [c for c in commuters if c != driver]
-        full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
-        st.session_state.temp_full = full_day
-        
-        half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
-        st.session_state.temp_half = half_day
-
-        if st.button("💾 SAVE TRIP TO LEDGER"):
-            # SUBMIT LOCK WINDOW GATEKEEPER CHECK
-            is_valid_submission = True
-            if TOKEN and REPO:
-                try:
-                    r_emergency = requests.get(f"{TRIP_URL}?final_check={random.randint(1, 1000000)}", headers=HEADERS)
-                    if r_emergency.status_code == 200:
-                        df_emergency = pd.read_csv(io.StringIO(base64.b64decode(r_emergency.json()["content"]).decode("utf-8")))
-                        if not df_emergency.empty and "Date" in df_emergency.columns:
-                            t_emergency_str = travel_date.strftime("%Y-%m-%d").strip()
-                            df_emergency["Emergency_Date_Str"] = pd.to_datetime(df_emergency["Date"], errors='coerce').dt.strftime("%Y-%m-%d").str.strip()
-                            if t_emergency_str in df_emergency["Emergency_Date_Str"].values and not st.session_state.is_admin:
-                                is_valid_submission = False
-                except Exception:
-                    pass
-
-            if not is_valid_submission:
-                st.error("🛑 Abe Loudu, data already exists on GitHub! Refreshing page...")
-                time.sleep(2)
-                st.rerun()
-            else:
-                full_day_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None
+                    st.markdown('<div style="text-align:center;"><span class
