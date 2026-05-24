@@ -9,17 +9,17 @@ import random
 
 st.set_page_config(page_title="MG Logger", page_icon="🚗", layout="centered")
 
-# Visual Engine: Pure Dark Layout with Universal Mobile Scrolling Viewports
+# Visual Engine: Pure Dark Layout with Max-Size Alert Banners
 st.markdown(
     """
     <style>
     [data-testid="stAppViewContainer"] {
         background-color: #0F172A !important;
-        overflow-y: auto !important; /* Permits fluid native scrolling */
+        overflow-y: auto !important;
     }
     .block-container {
         background: rgba(30, 41, 59, 0.7) !important;
-        padding: 20px 16px 30px 16px !important; /* Optimized padding footprints */
+        padding: 25px !important; 
         border-radius: 20px !important; 
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
         box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.5) !important; 
@@ -44,11 +44,26 @@ st.markdown(
     .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #6366F1, #4F46E5) !important; color: white !important; border-color: #6366F1 !important; }
     div.stButton > button { width: 100%; background: linear-gradient(90deg, #6366F1, #EC4899) !important; color: white !important; border-radius: 12px; font-weight: 800; padding: 14px; border: none !important; box-shadow: 0px 4px 15px rgba(236, 72, 153, 0.3); }
     .admin-btn > div.stButton > button { background: linear-gradient(90deg, #EF4444, #DC2626) !important; box-shadow: 0px 4px 12px rgba(239, 68, 68, 0.3); }
-    .neon-badge { display: inline-block; padding: 6px 14px; font-size: 11px; font-weight: 900; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
-    .badge-driver { background-color: rgba(34, 197, 94, 0.25); color: #4ADE80; border: 1px solid #22C55E; box-shadow: 0 0 12px rgba(34,197,94,0.4); }
-    .badge-full { background-color: rgba(56, 189, 248, 0.25); color: #38BDF8; border: 1px solid #0EA5E9; box-shadow: 0 0 12px rgba(56,189,248,0.4); }
-    .badge-half { background-color: rgba(251, 191, 36, 0.25); color: #FBBF24; border: 1px solid #D97706; box-shadow: 0 0 12px rgba(251,191,36,0.4); }
-    .badge-holiday { background-color: rgba(168, 85, 247, 0.25); color: #C084FC; border: 1px solid #9333EA; }
+    
+    /* 💥 Massive Custom Loudu Warning Banners Style Sheets */
+    .giant-lock-banner { 
+        background-color: #0F172A; 
+        border: 3px solid #EF4444; 
+        padding: 40px 20px; 
+        border-radius: 20px; 
+        text-align: center; 
+        margin-bottom: 20px; 
+        box-shadow: 0px 0px 30px rgba(239, 68, 68, 0.4); 
+    }
+    .giant-future-banner { 
+        background-color: #0F172A; 
+        border: 3px solid #EAB308; 
+        padding: 40px 20px; 
+        border-radius: 20px; 
+        text-align: center; 
+        margin-bottom: 20px; 
+        box-shadow: 0px 0px 30px rgba(234, 179, 8, 0.4); 
+    }
     </style>
     """, 
     unsafe_allow_html=True
@@ -124,7 +139,16 @@ with tab_trip:
         date_exists = (target_dash in df_existing["Cleaned_Date_Str"].values) or (target_slash in df_existing["Cleaned_Date_Str"].values)
 
     if is_future_date:
-        st.error("🔮 Ye kam bhi Loudu ka hi hai. You cannot log entries for future dates.")
+        st.markdown(
+            """
+            <div class='giant-future-banner'>
+                <h1 style='font-size:75px;margin:0;'>🔮</h1>
+                <h2 style='font-size:38px;color:#EAB308;font-weight:900;margin:15px 0;line-height:1.2;'>Ye kam bhi Loudu ka hi hai</h2>
+                <h4 style='font-size:20px;color:#F1F5F9;font-weight:700;margin:0;'>You cannot log entries for future dates.</h4>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
         if st.button("🔙 GO BACK / CHANGE DATE", key="back_future_btn"):
             st.session_state["reset_trigger"] += 1
             st.rerun()
@@ -136,7 +160,16 @@ with tab_trip:
         st.rerun()
 
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
-        st.warning("🛑 Abe Loudu dubara kyun kar raha! Ab mantri karega Sahi.")
+        st.markdown(
+            """
+            <div class='giant-lock-banner'>
+                <h1 style='font-size:75px;margin:0;'>🛑</h1>
+                <h2 style='font-size:38px;color:#EF4444;font-weight:900;margin:15px 0;line-height:1.2;'>Abe Loudu dubara kyun kar raha!</h2>
+                <h4 style='font-size:20px;color:#F1F5F9;font-weight:700;margin:0;'>Ab mantri karega Sahi.</h4>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
         if st.button("🔙 GO BACK / CHANGE DATE", key="back_lock_btn"):
             st.session_state["reset_trigger"] += 1
             st.rerun()
@@ -145,38 +178,14 @@ with tab_trip:
         commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
         if not commuters: commuters = all_commuters
 
-        st.markdown("#### ⚡ Real-Time Status Preview")
-        preview_cols = st.columns(len(all_commuters))
-        
-        t_driver = st.session_state.get("temp_driver", commuters[0])
-        t_full = st.session_state.get("temp_full", [])
-        t_half = st.session_state.get("temp_half", [])
-
-        for idx, person in enumerate(all_commuters):
-            with preview_cols[idx]:
-                st.write(f"**{person}**")
-                if person in st.session_state.holiday_list:
-                    st.markdown('<span class="neon-badge badge-holiday">🌴 Leave</span>', unsafe_allow_html=True)
-                elif person == t_driver:
-                    st.markdown('<span class="neon-badge badge-driver">👑 Wheel</span>', unsafe_allow_html=True)
-                elif person in t_full:
-                    st.markdown('<span class="neon-badge badge-full">🚗 Full</span>', unsafe_allow_html=True)
-                elif person in t_half:
-                    st.markdown('<span class="neon-badge badge-half">🌤️ Half</span>', unsafe_allow_html=True)
-                else:
-                    st.caption("---")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
+        # Real-time status preview section completely removed here to maximize vertical space
 
         driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
-        st.session_state.temp_driver = driver
         
         passenger_options = [c for c in commuters if c != driver]
         full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
-        st.session_state.temp_full = full_day
         
         half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
-        st.session_state.temp_half = half_day
 
         if st.button("💾 SAVE TRIP TO LEDGER"):
             full_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
