@@ -247,7 +247,7 @@ with tab_payout:
     """
     st.markdown(whatsapp_link_html, unsafe_allow_html=True)
 
-    # Lean Eco Impact Panel
+    # Lean Eco Impact Panel - Perfectly Sealed Block
     tree_days_saved = int(total_carbon_offset_kg / 0.06) 
     st.markdown(
         f"""
@@ -256,4 +256,21 @@ with tab_payout:
             <div class="scorecard-row" style="margin-top: 6px;">
                 <div class="scorecard-box" style="background:rgba(0,0,0,0.25); border:none;">
                     <div class="scorecard-label" style="color:#A7F3D0;">Avoided Footprint</div>
-                    <div
+                    <div class="scorecard-val" style="color:#34D399; font-size:16px;">{total_carbon_offset_kg:.1f} kg CO₂</div>
+                </div>
+                <div class="scorecard-box" style="background:rgba(0,0,0,0.25); border:none;">
+                    <div class="scorecard-label" style="color:#A7F3D0;">Equivalency Scale</div>
+                    <div class="scorecard-val" style="color:#34D399; font-size:16px;">{tree_days_saved} Tree-Days</div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+with tab_raw:
+    st.markdown("#### 🛒 Current Ledger Subsets")
+    if not df_expenses.empty:
+        st.dataframe(df_expenses.drop(columns=["Date"], errors="ignore"), use_container_width=True)
+    else:
+        st.info("No active shared bills captured inside this timeline window.")
