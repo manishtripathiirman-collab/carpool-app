@@ -24,7 +24,7 @@ st.markdown("""
     .stTabs [data-baseweb="tab-list"] { gap: 10px; }
     .stTabs [data-baseweb="tab"] { background-color: rgba(30, 41, 59, 0.7) !important; border: 1px solid #334155 !important; border-radius: 8px 8px 0px 0px; padding: 10px 20px !important; color: #94A3B8 !important; }
     .stTabs [aria-selected="true"] { background-color: #6366F1 !important; color: white !important; border-color: #6366F1 !important; }
-    .whatsapp-btn { display: flex; align-items: center; justify-content: center; background-color: #25D366 !important; color: white !important; font-weight: 700; font-size: 16px; text-decoration: none; padding: 14px; border-radius: 12px; width: 100%; text-align: center; margin-top: 15px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3); }
+    .whatsapp-btn { display: flex; align-items: center; justify-content: center; background-color: #25D366 !important; color: white !important; font-weight: 700; font-size: 16px; text-decoration: none; padding: 14px; border-radius: 12px; width: 100%; text-align: center; margin-top: 15px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3); }
     
     .stat-container { background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 15px; }
     .stat-title { font-size: 11px; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -35,7 +35,8 @@ st.markdown("""
         border: 1px solid rgba(16, 185, 129, 0.3);
         border-radius: 14px;
         padding: 16px;
-        margin-bottom: 20px;
+        margin-top: 25px;
+        margin-bottom: 10px;
         box-shadow: 0 0 15px rgba(16, 185, 129, 0.05);
     }
     .eco-headline { color: #10B981 !important; font-weight: 800; font-size: 15px; margin-bottom: 10px; letter-spacing: 0.3px; display: flex; align-items: center; gap: 6px; }
@@ -95,7 +96,6 @@ if not df_trips.empty:
     driver_tally = {c: 0 for c in commuters}
     passenger_tally = {c: 0 for c in commuters}
     
-    # Precision Garage Engine scaled specifically to a 65 KM run
     co2_saved = 0.0
     total_fuel_liters_saved = 0.0
 
@@ -105,15 +105,15 @@ if not df_trips.empty:
         if driver_matched in commuters:
             driver_tally[driver_matched] += 1
             
-            # --- HIGHWAY 65 KM GARAGE METRICS ENGINE ---
+            # 65 KM Garage Profiling
             if driver_matched == "Manish":
-                co2_saved += 10.3  # Saved kg per 65km run
+                co2_saved += 10.3  
                 total_fuel_liters_saved += 5.2
             elif driver_matched == "Abhishek":
-                co2_saved += 11.1  # Saved kg per 65km run
+                co2_saved += 11.1  
                 total_fuel_liters_saved += 5.8
             else:
-                co2_saved += 12.2  # Saved kg per 65km run (CNG Cars)
+                co2_saved += 12.2  
                 total_fuel_liters_saved += 6.5
             
         full_p = [normalize_name(p) for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
@@ -191,98 +191,6 @@ if not df_trips.empty:
         top_passenger = max(passenger_tally, key=passenger_tally.get) if sum(passenger_tally.values()) > 0 else "None"
         st.markdown(f'<div class="stat-container"><div class="stat-title">🎒 Top Passenger</div><div class="stat-value">{top_passenger} ({int(passenger_tally.get(top_passenger, 0))} Rides)</div></div>', unsafe_allow_html=True)
 
-    # --- UPDATED 65KM HIGH-VOLUME EMISSIONS FLEX PANEL ---
-    equivalent_tree_days = co2_saved / 0.06 if co2_saved > 0 else 0
-
-    st.markdown(f"""
-        <div class="eco-container">
-            <div class="eco-headline">🌱 MG Custom Garage Eco Impact Flex (65 KM Route)</div>
-            <div class="eco-grid">
-                <div class="eco-item">
-                    <div style="font-size: 11px; color: #34D399; font-weight:600;">🛑 AVOIDED EMISSIONS</div>
-                    <div style="font-size: 20px; font-weight: 800; color: #F8FAFC; margin-top:2px;">{co2_saved:.1f} kg <span style="font-size:12px; color:#A7F3D0; font-weight:500;">CO₂</span></div>
-                </div>
-                <div class="eco-item">
-                    <div style="font-size: 11px; color: #34D399; font-weight:600;">🌲 TREE-DAYS OFFSET</div>
-                    <div style="font-size: 20px; font-weight: 800; color: #F8FAFC; margin-top:2px;">{int(equivalent_tree_days):,} <span style="font-size:12px; color:#A7F3D0; font-weight:500;">Days</span></div>
-                </div>
-            </div>
-            <div style="font-size: 12px; color: #A7F3D0; margin-top: 10px; text-align: center; font-style: italic; font-weight: 500;">
-                ⛽ Commuting 65 km together saved roughly <b>{total_fuel_liters_saved:.1f} Total Liters</b> of fuel vs driving separately!
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
     tab_summary, tab_ledger = st.tabs(["💵 Payout Summary", "📋 Split Expense History"])
 
     with tab_summary:
-        st.markdown("### 💎 Consolidated Net Pairwise Settlements")
-        if net_settlements:
-            for s in net_settlements:
-                f_name, t_name = s["From"], s["To"]
-                lines = []
-                
-                if s["p1_cp_gross"] > s["p2_cp_gross"]:
-                    lines.append(f"• 🚗 **Carpool Dues:** {f_name} owes {t_name} **₹{s['p1_cp_gross'] - s['p2_cp_gross']:.0f}**")
-                elif s["p2_cp_gross"] > s["p1_cp_gross"]:
-                    lines.append(f"• 🚗 **Carpool Dues:** {t_name} owes {f_name} **₹{s['p2_cp_gross'] - s['p1_cp_gross']:.0f}**")
-                
-                if s["p1_misc_gross"] > s["p2_misc_gross"]:
-                    lines.append(f"• 🍔 **Other Spend:** {f_name} owes {t_name} **₹{s['p1_misc_gross'] - s['p2_misc_gross']:.0f}**")
-                elif s["p2_misc_gross"] > s["p1_misc_gross"]:
-                    lines.append(f"• 🍔 **Other Spend:** {t_name} owes {f_name} **₹{s['p2_misc_gross'] - s['p1_misc_gross']:.0f}**")
-
-                breakdown_html = "<br>".join(lines) if lines else "• No segment debts."
-
-                st.markdown(f"""
-                <div class="mobile-card">
-                    <div class="badge-payout">₹{s['Amount']:.2f}</div>
-                    <div style="font-weight:700; font-size:16px; color:#F8FAFC;">👉 {f_name}</div>
-                    <div style="font-size:13px; color:#94A3B8; margin-top:2px;">Owes net single payout directly to <b>{t_name}</b></div>
-                    <div class="breakdown-text">
-                        <b>📝 Itemized Calculations Breakup:</b><br>
-                        {breakdown_html}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # --- CONSOLIDATED WHATSAPP OUTPUT ENGINE ---
-            header_emoji, header_title = "🚗", "Carpool Net Payout Summary"
-            if expense_keywords:
-                if any(k in expense_keywords for k in ['lunch', 'food', 'snack']): header_emoji, header_title = "🍔", "MG Food & Ride Settlement Desk"
-                elif any(k in expense_keywords for k in ['turf', 'cricket']): header_emoji, header_title = "🏏", "MG Cricket Turf Match Settlements"
-                elif any(k in expense_keywords for k in ['party']): header_emoji, header_title = "🍻", "MG Party Weekend Ledger"
-                elif any(k in expense_keywords for k in ['petrol', 'fuel']): header_emoji, header_title = "⛽", "MG Fuel Refill Matrix"
-            
-            whatsapp_text = f"{header_emoji} *{header_title} ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
-            whatsapp_text += f"🌱 *Eco Tally:* {co2_saved:.1f} kg CO₂ saved ({int(equivalent_tree_days):,} Tree-Days offset!)\n"
-            whatsapp_text += "--------------------------------------\n"
-            for s in net_settlements:
-                f_n, t_n = s["From"], s["To"]
-                whatsapp_text += f"👉 *{f_n}* pays *{t_n}*:  *₹{s['Amount']:.2f}*\n"
-                if s["p1_cp_gross"] != s["p2_cp_gross"]:
-                    whatsapp_text += f"   _↳ Carpool: {f_n if (s['p1_cp_gross'] - s['p2_cp_gross']) > 0 else t_n} owes ₹{abs(s['p1_cp_gross'] - s['p2_cp_gross']):.0f}_\n"
-                if s["p1_misc_gross"] != s["p2_misc_gross"]:
-                    whatsapp_text += f"   _↳ Other Bills: {f_n if (s['p1_misc_gross'] - s['p2_misc_gross']) > 0 else t_n} owes ₹{abs(s['p1_misc_gross'] - s['p2_misc_gross']):.0f}_\n"
-                whatsapp_text += "\n"
-            whatsapp_text += "--------------------------------------"
-            
-            st.markdown(f'<a href="https://wa.me/?text={urllib.parse.quote(whatsapp_text)}" target="_blank" class="whatsapp-btn">💬 SHARE DIRECT TO WHATSAPP GROUP</a>', unsafe_allow_html=True)
-        else:
-            st.success("🎉 All accounts match up perfectly across this selected window!")
-
-    with tab_ledger:
-        st.markdown(f"### 📋 Full Bill Ledger Breakdown (Selected Window Total: ₹{total_period_expenses:,.2f})")
-        if not filtered_expenses.empty:
-            render_df = filtered_expenses.drop(columns=['Clean_Date']) if 'Clean_Date' in filtered_expenses.columns else filtered_expenses
-            st.dataframe(render_df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
-        else: st.info("No custom shared bills found within this selected date window.")
-            
-        st.markdown("---")
-        with st.expander("📱 View Raw Travel Calendar Logs History"):
-            render_trips = filtered_trips.drop(columns=['Clean_Date']) if 'Clean_Date' in filtered_trips.columns else filtered_trips
-            st.dataframe(render_trips.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
-else:
-    st.info("Log database file is empty.")
