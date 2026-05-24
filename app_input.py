@@ -283,32 +283,4 @@ with st.expander("🛠️ Admin Management Suite"):
         selected_holidays = []
         h_cols = st.columns(len(all_commuters))
         for idx, person in enumerate(all_commuters):
-            with h_cols[idx]:
-                if st.checkbox(person, value=(person in st.session_state.holiday_list), key=f"holiday_{person}"):
-                    selected_holidays.append(person)
-        if sorted(selected_holidays) != sorted(st.session_state.holiday_list):
-            st.session_state.holiday_list = selected_holidays
-            st.rerun()
-
-        st.markdown("---")
-        st.markdown("#### ❌ Advanced Row Removal Actions")
-        
-        st.markdown("**Delete Commute Record by Date:**")
-        if not df_existing.empty:
-            dates_list = df_existing["Date"].unique().tolist()
-            target_del_date = st.selectbox("Select Commute Date to REMOVE", dates_list, key="del_commute_select")
-            if st.button("🔥 PURGE COMMUTE ENTRY", key="purge_commute_btn"):
-                df_new_logs = df_existing[df_existing["Date"].astype(str) != str(target_del_date)]
-                
-                payload_del = {"message": f"Admin Purged Commute: {target_del_date}", "content": base64.b64encode(df_new_logs.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                r_sha = requests.get(f"{TRIP_URL}?delsha={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_sha.status_code == 200: payload_del["sha"] = r_sha.json()["sha"]
-                
-                if requests.put(TRIP_URL, headers=HEADERS, json=payload_del).status_code in [200, 201]:
-                    st.success(f"Purged commute log for {target_del_date} successfully!")
-                    time.sleep(1)
-                    st.rerun()
-        else:
-            st.info("No active commute logs inside file.")
-
-        st.markdown("<br>**Delete Expense Record by Description:**", unsafe_allow_html=True
+            with h_cols
