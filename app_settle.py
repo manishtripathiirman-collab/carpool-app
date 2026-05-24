@@ -71,7 +71,7 @@ if TOKEN and REPO:
 
 balances = {name: 0.0 for name in all_commuters}
 
-# 1. Commute Loops (With Robust Quote Stripping)
+# 1. Commute Calculations Loop
 if not df_trips.empty:
     for _, row in df_trips.iterrows():
         driver = str(row.get("Driver", "")).replace('"', '').replace("'", "").strip().title()
@@ -95,12 +95,11 @@ if not df_trips.empty:
         if driver in balances:
             balances[driver] += trip_total
 
-# 2. Expense Loops (With Case-Insensitive Column Fallback)
+# 2. Expense Calculations Loop
 if not df_expenses.empty:
     for _, row in df_expenses.iterrows():
         payer = str(row.get("Paid By", "")).replace('"', '').replace("'", "").strip().title()
         
-        # Pull amount cleanly regardless of upper/lowercase column names
         total_amount = row.get("Total Amount", row.get("Total amount", 0.0))
         try:
             total_amount = float(total_amount)
