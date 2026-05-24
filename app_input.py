@@ -37,7 +37,11 @@ st.markdown(
     div[role="listbox"] li:hover { background-color: #334155 !important; }
     div[data-baseweb="tag"] { background-color: #334155 !important; border-radius: 6px; }
     div[data-baseweb="tag"] span { color: #FFFFFF !important; }
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 15px; }
+    .stTabs [data-baseweb="tab"] { background-color: rgba(15, 23, 42, 0.6) !important; border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 8px 8px 0px 0px; padding: 10px 20px !important; color: #94A3B8 !important; font-weight: 700; }
+    .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #6366F1, #4F46E5) !important; color: white !important; border-color: #6366F1 !important; }
     div.stButton > button { width: 100%; background: linear-gradient(90deg, #6366F1, #EC4899) !important; color: white !important; border-radius: 12px; font-weight: 800; padding: 14px; border: none !important; box-shadow: 0px 4px 15px rgba(236, 72, 153, 0.3); }
+    .admin-btn > div.stButton > button { background: linear-gradient(90deg, #EF4444, #DC2626) !important; box-shadow: 0px 4px 12px rgba(239, 68, 68, 0.3); }
     .lock-banner { background-color: #0F172A; border: 2px solid #EF4444; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0px 0px 20px rgba(239, 68, 68, 0.3); }
     .future-banner { background-color: #0F172A; border: 2px solid #EAB308; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0px 0px 20px rgba(234, 179, 8, 0.3); }
     </style>
@@ -57,7 +61,6 @@ utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
 
-# FORCED AIRTIGHT SYNC: Reads strictly and cleanly from your updated Streamlit Secrets manager
 TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
 REPO = st.secrets.get("GITHUB_REPO", "").strip()
 
@@ -69,52 +72,58 @@ HEADERS = {
 }
 
 TRIP_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
+EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
 
 df_existing = pd.DataFrame()
+df_exp_existing = pd.DataFrame()
 
 if TOKEN and REPO:
     try:
+        # Load Travel Records
         r = requests.get(f"{TRIP_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
         if r.status_code == 200:
             df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
+        
+        # Load Expense Records
+        r_e = requests.get(f"{EXPENSE_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
+        if r_e.status_code == 200:
+            df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
     except Exception:
         pass
 
-travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_norm")
+tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
 
-is_future_date = travel_date > today_date_ist
+with tab_trip:
+    travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_norm")
+    is_future_date = travel_date > today_date_ist
 
-date_exists = False
-if not df_existing.empty and "Date" in df_existing.columns:
-    target_dash = travel_date.strftime("%Y-%m-%d").strip()
-    target_slash = travel_date.strftime("%Y/%m/%d").strip()
-    df_existing["Cleaned_Date_Str"] = df_existing["Date"].astype(str).str.strip()
-    date_exists = (target_dash in df_existing["Cleaned_Date_Str"].values) or (target_slash in df_existing["Cleaned_Date_Str"].values)
+    date_exists = False
+    if not df_existing.empty and "Date" in df_existing.columns:
+        target_dash = travel_date.strftime("%Y-%m-%d").strip()
+        target_slash = travel_date.strftime("%Y/%m/%d").strip()
+        df_existing["Cleaned_Date_Str"] = df_existing["Date"].astype(str).str.strip()
+        date_exists = (target_dash in df_existing["Cleaned_Date_Str"].values) or (target_slash in df_existing["Cleaned_Date_Str"].values)
 
-if is_future_date:
-    st.markdown("<div class='future-banner'><h1 style='font-size:50px;margin:0;'>🔮</h1><h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;'>Ye kam bhi Loudu ka hi hai</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>You cannot log entries for future dates.</h4></div>", unsafe_allow_html=True)
+    if is_future_date:
+        st.markdown("<div class='future-banner'><h1 style='font-size:50px;margin:0;'>🔮</h1><h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;'>Ye kam bhi Loudu ka hi hai</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>You cannot log entries for future dates.</h4></div>", unsafe_allow_html=True)
 
-elif st.session_state.just_saved:
-    st.success(st.session_state.saved_message)
-    st.session_state.just_saved = False
-    time.sleep(1.5)
-    st.rerun()
+    elif st.session_state.just_saved:
+        st.success(st.session_state.saved_message)
+        st.session_state.just_saved = False
+        time.sleep(1.5)
+        st.rerun()
 
-# STRICT WARNING BLOCK LAYER: Locks forms out completely for logged dates
-elif date_exists and not st.session_state.is_admin:
-    st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
+    elif date_exists and not st.session_state.is_admin:
+        st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
 
-else:
-    driver = st.selectbox("Designated Driver", all_commuters, key="driver_select_box")
-    passenger_options = [c for c in all_commuters if c != driver]
-    
-    full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
-    half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
+    else:
+        driver = st.selectbox("Designated Driver", all_commuters, key="driver_select_box")
+        passenger_options = [c for c in all_commuters if c != driver]
+        
+        full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
+        half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
 
-    if st.button("💾 SAVE TRIP TO LEDGER"):
-        if date_exists and not st.session_state.is_admin:
-            st.error("🛑 Lock active: Overriding entries is prohibited!")
-        else:
+        if st.button("💾 SAVE TRIP TO LEDGER"):
             full_str = ", ".join(full_day) if full_day else "None"
             half_str = ", ".join(half_day) if half_day else "None"
             
@@ -142,7 +151,55 @@ else:
                 st.session_state.saved_message = f"🎉 Trip saved cleanly to ledger!"
                 st.rerun()
             else:
-                st.error("🛑 Sync Failure: Token permissions restricted. Ensure classic 'repo' scope checkbox is enabled on GitHub.")
+                st.error("🛑 Sync Failure: Problem logging travel entry.")
+
+# FULL REWORKED EXPENSE ENGINE TAB
+with tab_expense:
+    st.markdown("### 💰 Add Shared Expense")
+    exp_date = st.date_input("Date of Expense", today_date_ist, key="exp_date_picker")
+    payer = st.selectbox("Who Paid the Bill?", all_commuters, key="exp_payer")
+    amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=0.0, step=50.0)
+    item_desc = st.text_input("What was this for?", placeholder="e.g., Office Lunch, Turf booking, Snacks")
+    
+    st.markdown("#### 👥 Split Among Whom?")
+    selected_consumers = []
+    cols = st.columns(len(all_commuters))
+    for idx, person in enumerate(all_commuters):
+        with cols[idx]:
+            if st.checkbox(person, value=True, key=f"share_{person}"):
+                selected_consumers.append(person)
+
+    if st.button("💸 DISTRIBUTE & SAVE EXPENSE"):
+        if amount <= 0.0 or not item_desc.strip() or len(selected_consumers) == 0:
+            st.error("🛑 Fill all details properly! Amount must be > 0 and at least one person chosen.")
+        else:
+            with st.spinner("Saving expense entry..."):
+                split_share = round(amount / len(selected_consumers), 2)
+                
+                new_exp_row = pd.DataFrame([{
+                    "Date": str(exp_date), 
+                    "Paid By": payer, 
+                    "Total Amount": amount, 
+                    "Description": item_desc.strip(), 
+                    "Shared By": ", ".join(selected_consumers), 
+                    "Per Head Cost": split_share
+                }])
+                
+                df_exp_final = pd.concat([df_exp_existing, new_exp_row], ignore_index=True) if not df_exp_existing.empty else new_exp_row
+                
+                payload_exp = {"message": f"Log expense: {item_desc}", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
+                
+                r_exp_sha = requests.get(f"{EXPENSE_URL}?getexpsha={random.randint(1, 1000000)}", headers=HEADERS)
+                if r_exp_sha.status_code == 200: 
+                    payload_exp["sha"] = r_exp_sha.json()["sha"]
+                
+                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
+                    st.toast(f"💸 Bill split recorded for {item_desc}!", icon="💰")
+                    st.success("💸 Expense Saved Successfully!")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("🛑 Sync Failure updating the expense registry.")
 
 st.markdown("---")
 with st.expander("🛠️ Admin Controls"):
