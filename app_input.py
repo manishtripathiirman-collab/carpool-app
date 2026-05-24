@@ -9,7 +9,7 @@ import random
 
 st.set_page_config(page_title="MG Logger", page_icon="📝", layout="centered")
 
-# Visual Engine: Clean High-Contrast Glassmorphism Stacking System
+# Visual Engine: Glassmorphism Styling System
 st.markdown("""
     <style>
     [data-testid="stAppViewContainer"] {
@@ -63,4 +63,80 @@ if "is_admin" not in st.session_state: st.session_state.is_admin = False
 
 utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
-today_date
+today_date_ist = ist_now.date()
+
+TOKEN = st.secrets.get("GITHUB_TOKEN", "")
+REPO = st.secrets.get("GITHUB_REPO", "")
+
+HEADERS = {
+    "Authorization": f"token {TOKEN}",
+    "Accept": "application/vnd.github.v3+json",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache"
+}
+
+TRIP_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
+EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
+
+df_existing = pd.DataFrame()
+df_exp_existing = pd.DataFrame()
+
+# Diagnostic Run Tracker Initializer
+if TOKEN and REPO:
+    try:
+        r = requests.get(f"{TRIP_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
+        if r.status_code == 200:
+            df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
+        else:
+            st.error(f"🛑 GitHub Travel Logs Error! Status: {r.status_code} — {r.text[:200]}")
+            
+        r_e = requests.get(f"{EXPENSE_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
+        if r_e.status_code == 200:
+            df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
+    except Exception as e:
+        st.error(f"💥 Critical Load Crash: {str(e)}")
+
+tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
+
+# TAB 1: COMMUTE LOGGING
+with tab_trip:
+    travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_norm")
+
+    if st.session_state.last_processed_date != str(travel_date):
+        st.session_state.disable_lock = False
+        st.session_state.last_processed_date = str(travel_date)
+
+    is_future_date = travel_date > today_date_ist
+    
+    # Normalized Array Scanning Checks
+    date_exists = False
+    if not df_existing.empty and "Date" in df_existing.columns:
+        target_str = travel_date.strftime("%Y-%m-%d").strip()
+        df_existing["Cleaned_Date_Str"] = pd.to_datetime(df_existing["Date"], errors='coerce').dt.strftime("%Y-%m-%d").str.strip()
+        date_exists = target_str in df_existing["Cleaned_Date_Str"].values
+
+    if is_future_date:
+        st.markdown("<div class='future-banner'><h1 style='font-size:50px;margin:0;'>🔮</h1><h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;'>Ye kam bhi Loudu ka hi hai</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>You cannot log entries for future dates.</h4></div>", unsafe_allow_html=True)
+
+    elif st.session_state.just_saved:
+        st.success(st.session_state.saved_message)
+        st.session_state.just_saved = False
+        time.sleep(1.5)
+        st.rerun()
+
+    # The Core Interface Lockout Gatekeeper
+    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
+        st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
+
+    else:
+        commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
+        if not commuters: commuters = all_commuters
+
+        st.markdown("#### ⚡ Real-Time Status Preview")
+        preview_cols = st.columns(len(all_commuters))
+        
+        t_driver = st.session_state.get("temp_driver", commuters[0])
+        t_full = st.session_state.get("temp_full", [])
+        t_half = st.session_state.get("temp_half", [])
+
+        for idx, person in enumerate(
