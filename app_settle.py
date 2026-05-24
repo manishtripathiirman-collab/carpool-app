@@ -83,10 +83,34 @@ def normalize_name(name_str):
     return val.title()
 
 if not df_trips.empty:
-    st.markdown("### 🗓️ Select Calculation Date Window")
-    col1, col2 = st.columns(2)
-    with col1: start_date = st.date_input("From Date", min(df_trips['Clean_Date']), key="s_start")
-    with col2: end_date = st.date_input("To Date", max(df_trips['Clean_Date']), key="s_end")
+    st.markdown("### 🗓️ Select Settlement Week")
+    
+    # --- AUTOMATED ISO WEEK BLOCK GENERATOR ---
+    all_dates = pd.to_datetime(df_trips['Date']).dt.date
+    min_date = min(all_dates)
+    max_date = max(all_dates)
+    
+    # Generate sequential Monday-to-Sunday intervals covering the whole historical ledger
+    week_options = []
+    current_start = min_date - datetime.timedelta(days=min_date.weekday()) # Snap first item back to Monday
+    
+    while current_start <= max_date:
+        current_end = current_start + datetime.timedelta(days=6)
+        # Formats text value clearly like: 'Week 21 (18 May - 24 May 2026)'
+        week_num = current_start.isocalendar()[1]
+        label = f"Week {week_num:02d} ({current_start.strftime('%d %b')} - {current_end.strftime('%d %b')} {current_start.strftime('%Y')})"
+        week_options.append((label, current_start, current_end))
+        current_start += datetime.timedelta(days=7)
+        
+    # Reverse options so current active week sits at the top default spot
+    week_options.reverse()
+    
+    selected_week_label = st.selectbox("Choose Billing Week Window:", [w[0] for w in week_options])
+    
+    # Pull boundary constraints out of chosen dropdown index tuple
+    chosen_week = [w for w in week_options if w[0] == selected_week_label][0]
+    start_date = chosen_week[1]
+    end_date = chosen_week[2]
         
     filtered_trips = df_trips[(df_trips['Clean_Date'] >= start_date) & (df_trips['Clean_Date'] <= end_date)]
     
@@ -96,7 +120,6 @@ if not df_trips.empty:
     driver_tally = {c: 0 for c in commuters}
     passenger_tally = {c: 0 for c in commuters}
     
-    # Garage Metrics scaled precisely to a 130 KM round-trip
     co2_saved = 0.0
     total_fuel_liters_saved = 0.0
 
@@ -106,15 +129,15 @@ if not df_trips.empty:
         if driver_matched in commuters:
             driver_tally[driver_matched] += 1
             
-            # --- 130 KM HIGHWAY ROUND-TRIP CALCULATIONS ENGINE ---
+            # 130 KM Garage Profiling
             if driver_matched == "Manish":
-                co2_saved += 20.6  # Saved kg per 130km day
+                co2_saved += 20.6  
                 total_fuel_liters_saved += 10.4
             elif driver_matched == "Abhishek":
-                co2_saved += 22.2  # Saved kg per 130km day
+                co2_saved += 22.2  
                 total_fuel_liters_saved += 11.6
             else:
-                co2_saved += 24.4  # Saved kg per 130km day (CNG Cars)
+                co2_saved += 24.4  
                 total_fuel_liters_saved += 13.0
             
         full_p = [normalize_name(p) for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
@@ -183,14 +206,14 @@ if not df_trips.empty:
     net_settlements = [s for s in net_settlements if round(s["Amount"], 2) > 0]
 
     # --- TOP ROW: SCORECARDS ---
-    st.markdown("#### ⚡ Window Performance Scorecard")
+    st.markdown("#### ⚡ Weekly Performance Scorecard")
     m_col1, m_col2 = st.columns(2)
     with m_col1:
         top_driver = max(driver_tally, key=driver_tally.get) if sum(driver_tally.values()) > 0 else "None"
-        st.markdown(f'<div class="stat-container"><div class="stat-title">👑 King of Wheel</div><div class="stat-value">{top_driver} ({driver_tally.get(top_driver, 0)} Days)</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="stat-container"><div class="stat-title">👑 Weekly King of Wheel</div><div class="stat-value">{top_driver} ({driver_tally.get(top_driver, 0)} Days)</div></div>', unsafe_allow_html=True)
     with m_col2:
         top_passenger = max(passenger_tally, key=passenger_tally.get) if sum(passenger_tally.values()) > 0 else "None"
-        st.markdown(f'<div class="stat-container"><div class="stat-title">🎒 Top Passenger</div><div class="stat-value">{top_passenger} ({int(passenger_tally.get(top_passenger, 0))} Rides)</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="stat-container"><div class="stat-title">🎒 Weekly Top Passenger</div><div class="stat-value">{top_passenger} ({int(passenger_tally.get(top_passenger, 0))} Rides)</div></div>', unsafe_allow_html=True)
 
     tab_summary, tab_ledger = st.tabs(["💵 Payout Summary", "📋 Split Expense History"])
 
@@ -252,7 +275,7 @@ if not df_trips.empty:
             
             st.markdown(f'<a href="https://wa.me/?text={urllib.parse.quote(whatsapp_text)}" target="_blank" class="whatsapp-btn">💬 SHARE DIRECT TO WHATSAPP GROUP</a>', unsafe_allow_html=True)
             
-            # --- ENVIRONMENTAL FLEX BLOCK PANEL (SCALED TO 130 KM ROUND TRIP) ---
+            # --- ENVIRONMENTAL FLEX BLOCK PANEL ---
             st.markdown(f"""
                 <div class="eco-container">
                     <div class="eco-headline">🌱 MG Custom Garage Eco Impact Flex (130 KM Round-Trip)</div>
@@ -272,17 +295,17 @@ if not df_trips.empty:
                 </div>
             """, unsafe_allow_html=True)
         else:
-            st.success("🎉 All accounts match up perfectly across this selected window!")
+            st.success("🎉 All accounts match up perfectly across this selected weekly window!")
 
     with tab_ledger:
-        st.markdown(f"### 📋 Full Bill Ledger Breakdown (Selected Window Total: ₹{total_period_expenses:,.2f})")
+        st.markdown(f"### 📋 Weekly Bill Ledger Breakdown (Selected Week: ₹{total_period_expenses:,.2f})")
         if not filtered_expenses.empty:
             render_df = filtered_expenses.drop(columns=['Clean_Date']) if 'Clean_Date' in filtered_expenses.columns else filtered_expenses
             st.dataframe(render_df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
-        else: st.info("No custom shared bills found within this selected date window.")
+        else: st.info("No shared bills found logged inside this chosen week window.")
             
         st.markdown("---")
-        with st.expander("📱 View Raw Travel Calendar Logs History"):
+        with st.expander("📱 View Raw Weekly Travel Calendar Logs"):
             render_trips = filtered_trips.drop(columns=['Clean_Date']) if 'Clean_Date' in filtered_trips.columns else filtered_trips
             st.dataframe(render_trips.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
 else:
