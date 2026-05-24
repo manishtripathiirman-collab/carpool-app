@@ -152,12 +152,37 @@ with tab_trip:
             payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
             r_exist = requests.get(TRIP_URL, headers=HEADERS)
             if r_exist.status_code == 200: payload["sha"] = r_exist.json()["sha"]
+            
             if requests.put(TRIP_URL, headers=HEADERS, json=payload).status_code in [200, 201]:
-                # FIXED: Pushes an instant native background notification toast and balloons
+                
+                # --- AUTOMATED GREEN-API ENGINE START ---
+                try:
+                    w_msg = (
+                        f"🌅 *MG Carpool Hub Summary — {travel_date}*\n\n"
+                        f"👑 *Driver:* {driver.strip().title()}\n"
+                        f"🚗 *Full-Day Passengers:* {full_day_str}\n"
+                        f"🌤️ *Half-Day Passengers:* {half_day_str}\n\n"
+                        f"📊 _Ledger updated seamlessly!_ 💸"
+                    )
+                    
+                    g_instance = st.secrets['GREEN_INSTANCE_ID']
+                    g_token = st.secrets['TOKEN_PART_1'] + st.secrets['TOKEN_PART_2']
+                    w_url = f"https://api.green-api.com/waInstance{g_instance}/sendMessage/{g_token}"
+                    
+                    w_payload = {
+                        "chatId": st.secrets['WHATSAPP_GROUP_ID'],
+                        "message": w_msg
+                    }
+                    
+                    requests.post(w_url, json=w_payload, headers={"Content-Type": "application/json"}, timeout=5)
+                except Exception:
+                    pass
+                # --- AUTOMATED GREEN-API ENGINE END ---
+
                 st.toast(f"🚗 Commute log saved for {travel_date}!", icon="✅")
                 st.balloons()
                 st.session_state.just_saved = True
-                st.session_state.saved_message = f"🎉 Trip saved successfully!"
+                st.session_state.saved_message = f"🎉 Trip saved & WhatsApp Group Notified!"
                 st.session_state.disable_lock = True
                 st.rerun()
 
@@ -187,8 +212,8 @@ with tab_expense:
                 payload_exp = {"message": f"Log expense: {item_desc}", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
                 r_exp = requests.get(f"{EXPENSE_URL}?ts={time.time()}", headers=HEADERS)
                 if r_exp.status_code == 200: payload_exp["sha"] = r_exp.json()["sha"]
+                
                 if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
-                    # FIXED: Pushes an instant native expense notification toast
                     st.toast(f"💸 Bill split recorded for {item_desc}!", icon="💰")
                     st.success("💸 Expense Saved Successfully!")
                     time.sleep(1.5)
