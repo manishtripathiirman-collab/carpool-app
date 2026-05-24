@@ -71,9 +71,9 @@ if "last_processed_date" not in st.session_state: st.session_state.last_processe
 if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
 
-# CRITICAL FIX: Explicit State Key Binding for the Date Picker
-if "trip_date_picker_key" not in st.session_state:
-    st.session_state["trip_date_picker_key"] = today_date_ist
+# SAFE STATE RESET: We generate an independent trigger index instead of hard-assigning values to a bounded key
+if "reset_trigger" not in st.session_state:
+    st.session_state["reset_trigger"] = 0
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
 REPO = st.secrets.get("GITHUB_REPO", "").strip()
@@ -106,8 +106,12 @@ if TOKEN and REPO:
 tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
 
 with tab_trip:
-    # Read date directly from session state binding
-    travel_date = st.date_input("Date of Travel", key="trip_date_picker_key")
+    # AIRTIGHT FIX: Appending the dynamic reset_trigger to the key allows Streamlit to safely re-render the widget fresh without any state collision errors
+    travel_date = st.date_input(
+        "Date of Travel", 
+        today_date_ist, 
+        key=f"trip_date_picker_bound_{st.session_state['reset_trigger']}"
+    )
 
     if st.session_state.last_processed_date != str(travel_date):
         st.session_state.disable_lock = False
@@ -125,7 +129,7 @@ with tab_trip:
     if is_future_date:
         st.markdown("<div class='future-banner'><h1 style='font-size:50px;margin:0;'>🔮</h1><h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;'>Ye kam bhi Loudu ka hi hai</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>You cannot log entries for future dates.</h4></div>", unsafe_allow_html=True)
         if st.button("🔙 GO BACK / CHANGE DATE", key="back_future_btn"):
-            st.session_state["trip_date_picker_key"] = today_date_ist
+            st.session_state["reset_trigger"] += 1
             st.rerun()
 
     elif st.session_state.just_saved:
@@ -137,7 +141,7 @@ with tab_trip:
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
         st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
         if st.button("🔙 GO BACK / CHANGE DATE", key="back_lock_btn"):
-            st.session_state["trip_date_picker_key"] = today_date_ist
+            st.session_state["reset_trigger"] += 1
             st.rerun()
 
     else:
@@ -214,98 +218,4 @@ with tab_expense:
     exp_date = st.date_input("Date of Expense", today_date_ist, key="exp_date_picker")
     payer = st.selectbox("Who Paid the Bill?", all_commuters, key="exp_payer")
     amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=0.0, step=50.0)
-    item_desc = st.text_input("What was this for?", placeholder="e.g., Office Lunch, Turf booking, Snacks")
-    
-    selected_consumers = []
-    cols = st.columns(len(all_commuters))
-    for idx, person in enumerate(all_commuters):
-        with cols[idx]:
-            if st.checkbox(person, value=(person == payer), key=f"share_{person}"):
-                selected_consumers.append(person.strip().title())
-
-    if st.button("💸 DISTRIBUTE & SAVE EXPENSE"):
-        if amount <= 0.0 or not item_desc.strip() or len(selected_consumers) == 0:
-            st.error("🛑 Fill all details properly!")
-        else:
-            with st.spinner("Saving expense..."):
-                split_share = round(amount / len(selected_consumers), 2)
-                new_exp_row = pd.DataFrame([{"Date": str(exp_date), "Paid By": payer.strip().title(), "Total Amount": amount, "Description": item_desc.strip(), "Shared By": ", ".join(selected_consumers), "Per Head Cost": split_share}])
-                df_exp_final = pd.concat([df_exp_existing, new_exp_row], ignore_index=True) if not df_exp_existing.empty else new_exp_row
-                payload_exp = {"message": f"Log expense: {item_desc}", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                
-                r_exp_sha = requests.get(f"{EXPENSE_URL}?getexpsha={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_exp_sha.status_code == 200: payload_exp["sha"] = r_exp_sha.json()["sha"]
-                
-                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
-                    st.toast(f"💸 Bill split recorded for {item_desc}!", icon="💰")
-                    st.success("💸 Expense Saved Successfully!")
-                    time.sleep(1.5)
-                    st.rerun()
-
-st.markdown("---")
-with st.expander("🛠️ Admin Management Suite"):
-    if not st.session_state.is_admin:
-        admin_pin = st.text_input("Enter Admin PIN", type="password", key="pin_input_field")
-        if admin_pin == "9999":
-            st.session_state.is_admin = True
-            st.rerun()
-    
-    if st.session_state.is_admin:
-        st.success("👑 Admin Rights Active - Complete Database Control Enabled")
-        if st.button("🔙 EXIT ADMIN MODE", key="exit_admin_btn"):
-            st.session_state.is_admin = False
-            st.rerun()
-        
-        st.markdown("---")
-        st.markdown("#### 🌴 Leave Configuration")
-        selected_holidays = []
-        h_cols = st.columns(len(all_commuters))
-        for idx, person in enumerate(all_commuters):
-            with h_cols[idx]:
-                if st.checkbox(person, value=(person in st.session_state.holiday_list), key=f"holiday_{person}"):
-                    selected_holidays.append(person)
-        if sorted(selected_holidays) != sorted(st.session_state.holiday_list):
-            st.session_state.holiday_list = selected_holidays
-            st.rerun()
-
-        st.markdown("---")
-        st.markdown("#### ❌ Advanced Row Removal Actions")
-        
-        st.markdown("**Delete Commute Record by Date:**")
-        if not df_existing.empty:
-            dates_list = df_existing["Date"].unique().tolist()
-            target_del_date = st.selectbox("Select Commute Date to REMOVE", dates_list, key="del_commute_select")
-            if st.button("🔥 PURGE COMMUTE ENTRY", key="purge_commute_btn"):
-                df_new_logs = df_existing[df_existing["Date"].astype(str) != str(target_del_date)]
-                
-                payload_del = {"message": f"Admin Purged Commute: {target_del_date}", "content": base64.b64encode(df_new_logs.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                r_sha = requests.get(f"{TRIP_URL}?delsha={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_sha.status_code == 200: payload_del["sha"] = r_sha.json()["sha"]
-                
-                if requests.put(TRIP_URL, headers=HEADERS, json=payload_del).status_code in [200, 201]:
-                    st.success(f"Purged commute log for {target_del_date} successfully!")
-                    time.sleep(1)
-                    st.rerun()
-        else:
-            st.info("No active commute logs inside file.")
-
-        st.markdown("<br>**Delete Expense Record by Description:**", unsafe_allow_html=True)
-        if not df_exp_existing.empty:
-            df_exp_existing["Display_Name"] = df_exp_existing["Date"].astype(str) + " - " + df_exp_existing["Description"].astype(str) + " (₹" + df_exp_existing["Total Amount"].astype(str) + ")"
-            exp_display_list = df_exp_existing["Display_Name"].tolist()
-            target_del_exp_display = st.selectbox("Select Expense to REMOVE", exp_display_list, key="del_exp_select")
-            
-            if st.button("🔥 PURGE EXPENSE ENTRY", key="purge_exp_btn"):
-                target_idx = df_exp_existing[df_exp_existing["Display_Name"] == target_del_exp_display].index[0]
-                df_new_exps = df_exp_existing.drop(target_idx).drop(columns=["Display_Name"], errors="ignore")
-                
-                payload_exp_del = {"message": "Admin Purged Expense row", "content": base64.b64encode(df_new_exps.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                r_exp_sha = requests.get(f"{EXPENSE_URL}?delexpsha={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_exp_sha.status_code == 200: payload_exp_del["sha"] = r_exp_sha.json()["sha"]
-                
-                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp_del).status_code in [200, 201]:
-                    st.success("Purged expense log row cleanly!")
-                    time.sleep(1)
-                    st.rerun()
-        else:
-            st.info("No active shared bills found inside file.")
+    item_desc = st
