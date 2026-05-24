@@ -205,7 +205,6 @@ if not df_trips.empty:
                 elif s["p2_cp_gross"] > s["p1_cp_gross"]:
                     lines.append(f"• 🚗 **Carpool Dues:** {t_name} owes {f_name} **₹{s['p2_cp_gross'] - s['p1_cp_gross']:.0f}**")
                 
-                # FIXED: The string is now completely closed with clean variable targets
                 if s["p1_misc_gross"] > s["p2_misc_gross"]:
                     lines.append(f"• 🍔 **Other Spend:** {f_name} owes {t_name} **₹{s['p1_misc_gross'] - s['p2_misc_gross']:.0f}**")
                 elif s["p2_misc_gross"] > s["p1_misc_gross"]:
@@ -213,5 +212,78 @@ if not df_trips.empty:
 
                 breakdown_html = "<br>".join(lines) if lines else "• No segment debts."
 
+                # FIXED: The triple-quoted f-string block is completely sealed off properly here
                 st.markdown(f"""
-                <div class="mobile-card
+                <div class="mobile-card">
+                    <div class="badge-payout">₹{s['Amount']:.2f}</div>
+                    <div style="font-weight:700; font-size:16px; color:#F8FAFC;">👉 {f_name}</div>
+                    <div style="font-size:13px; color:#94A3B8; margin-top:2px;">Owes net single payout directly to <b>{t_name}</b></div>
+                    <div class="breakdown-text">
+                        <b>📝 Itemized Calculations Breakup:</b><br>
+                        {breakdown_html}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # --- CONSOLIDATED WHATSAPP OUTPUT ENGINE ---
+            header_emoji, header_title = "🚗", "Carpool Net Payout Summary"
+            if expense_keywords:
+                if any(k in expense_keywords for k in ['lunch', 'food', 'snack']): header_emoji, header_title = "🍔", "MG Food & Ride Settlement Desk"
+                elif any(k in expense_keywords for k in ['turf', 'cricket']): header_emoji, header_title = "🏏", "MG Cricket Turf Match Settlements"
+                elif any(k in expense_keywords for k in ['party']): header_emoji, header_title = "🍻", "MG Party Weekend Ledger"
+                elif any(k in expense_keywords for k in ['petrol', 'fuel']): header_emoji, header_title = "⛽", "MG Fuel Refill Matrix"
+            
+            equivalent_tree_days = co2_saved / 0.06 if co2_saved > 0 else 0
+            
+            whatsapp_text = f"{header_emoji} *{header_title} ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
+            whatsapp_text += f"🌱 *Eco Tally:* {co2_saved:.1f} kg CO₂ saved ({int(equivalent_tree_days):,} Tree-Days offset!)\n"
+            whatsapp_text += "--------------------------------------\n"
+            for s in net_settlements:
+                f_n, t_n = s["From"], s["To"]
+                whatsapp_text += f"👉 *{f_n}* pays *{t_n}*:  *₹{s['Amount']:.2f}*\n"
+                if s["p1_cp_gross"] != s["p2_cp_gross"]:
+                    whatsapp_text += f"   _↳ Carpool: {f_n if (s['p1_cp_gross'] - s['p2_cp_gross']) > 0 else t_n} owes ₹{abs(s['p1_cp_gross'] - s['p2_cp_gross']):.0f}_\n"
+                if s["p1_misc_gross"] != s["p2_misc_gross"]:
+                    whatsapp_text += f"   _↳ Other Bills: {f_n if (s['p1_misc_gross'] - s['p2_misc_gross']) > 0 else t_n} owes ₹{abs(s['p1_misc_gross'] - s['p2_misc_gross']):.0f}_\n"
+                whatsapp_text += "\n"
+            whatsapp_text += "--------------------------------------"
+            
+            st.markdown(f'<a href="https://wa.me/?text={urllib.parse.quote(whatsapp_text)}" target="_blank" class="whatsapp-btn">💬 SHARE DIRECT TO WHATSAPP GROUP</a>', unsafe_allow_html=True)
+            
+            # --- ENVIRONMENTAL FLEX BLOCK PANEL ---
+            st.markdown(f"""
+                <div class="eco-container">
+                    <div class="eco-headline">🌱 MG Custom Garage Eco Impact Flex (65 KM Route)</div>
+                    <div class="eco-grid">
+                        <div class="eco-item">
+                            <div style="font-size: 11px; color: #34D399; font-weight:600;">🛑 AVOIDED EMISSIONS</div>
+                            <div style="font-size: 20px; font-weight: 800; color: #F8FAFC; margin-top:2px;">{co2_saved:.1f} kg <span style="font-size:12px; color:#A7F3D0; font-weight:500;">CO₂</span></div>
+                        </div>
+                        <div class="eco-item">
+                            <div style="font-size: 11px; color: #34D399; font-weight:600;">🌲 TREE-DAYS OFFSET</div>
+                            <div style="font-size: 20px; font-weight: 800; color: #F8FAFC; margin-top:2px;">{int(equivalent_tree_days):,} <span style="font-size:12px; color:#A7F3D0; font-weight:500;">Days</span></div>
+                        </div>
+                    </div>
+                    <div style="font-size: 12px; color: #A7F3D0; margin-top: 10px; text-align: center; font-style: italic; font-weight: 500;">
+                        ⛽ Commuting 65 km together saved roughly <b>{total_fuel_liters_saved:.1f} Total Liters</b> of fuel vs driving separately!
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.success("🎉 All accounts match up perfectly across this selected window!")
+
+    with tab_ledger:
+        st.markdown(f"### 📋 Full Bill Ledger Breakdown (Selected Window Total: ₹{total_period_expenses:,.2f})")
+        if not filtered_expenses.empty:
+            render_df = filtered_expenses.drop(columns=['Clean_Date']) if 'Clean_Date' in filtered_expenses.columns else filtered_expenses
+            st.dataframe(render_df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
+        else: st.info("No custom shared bills found within this selected date window.")
+            
+        st.markdown("---")
+        with st.expander("📱 View Raw Travel Calendar Logs History"):
+            render_trips = filtered_trips.drop(columns=['Clean_Date']) if 'Clean_Date' in filtered_trips.columns else filtered_trips
+            st.dataframe(render_trips.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
+else:
+    st.info("Log database file is empty.")
