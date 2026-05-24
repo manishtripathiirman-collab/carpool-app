@@ -5,6 +5,7 @@ import base64
 import io
 import random
 import datetime
+import urllib.parse
 
 st.set_page_config(page_title="MG Settlement Desk", page_icon="📊", layout="centered")
 
@@ -49,8 +50,13 @@ st.markdown(
     .eco-title { color: #34D399 !important; font-size: 14px !important; font-weight: 800 !important; }
     .eco-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
     
-    /* Buttons */
-    div.stButton > button { width: 100%; background: #10B981 !important; color: white !important; border-radius: 12px; font-weight: 800; padding: 12px; border: none !important; box-shadow: 0px 4px 12px rgba(16, 185, 129, 0.3); }
+    /* Real Native Button Links styling layout */
+    .whatsapp-btn {
+        display: block; text-align: center; width: 100%; background: linear-gradient(90deg, #10B981, #059669);
+        color: white !important; border-radius: 12px; font-weight: 800; padding: 14px; text-decoration: none !important;
+        font-size: 16px; box-shadow: 0px 4px 12px rgba(16, 185, 129, 0.3); font-family: sans-serif;
+    }
+    .whatsapp-btn:hover { background: linear-gradient(90deg, #059669, #047857); text-decoration: none !important; }
     </style>
     """, 
     unsafe_allow_html=True
@@ -227,15 +233,15 @@ with tab_payout:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # AIRTIGHT FIX: HTML-based clipboard interaction to safely handle text copies on mobile/web viewports
-    escaped_text = whatsapp_text_raw.replace("'", "\\'").replace("\n", "\\n")
-    copy_button_html = f"""
-    <button onclick="navigator.clipboard.writeText('{escaped_text}'); alert('📋 Summary text copied to clipboard successfully! Open WhatsApp and paste.');" 
-    style="width:100%; background:linear-gradient(90deg, #10B981, #059669); color:white; border-radius:12px; font-weight:800; padding:14px; border:none; cursor:pointer; font-size:16px; box-shadow:0px 4px 12px rgba(16, 185, 129, 0.3);">
-        📋 COPY FOR WHATSAPP GROUP CHAT
-    </button>
+    # ⚡ AIRTIGHT DIRECT REDIRECTION ENGINE: URL encodes text into native API scheme safely bypassing iframe isolation wrappers ⚡
+    encoded_message = urllib.parse.quote(whatsapp_text_raw)
+    whatsapp_link_html = f"""
+    <a href="https://api.whatsapp.com/send?text={encoded_message}" target="_blank" class="whatsapp-btn">
+        💬 SHARE DIRECT TO WHATSAPP GROUP
+    </a>
     """
-    st.components.v1.html(copy_button_html, height=60)
+    st.markdown(whatsapp_link_html, unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # Eco Impact Panel
     tree_days_saved = int(total_carbon_offset_kg / 0.06) 
