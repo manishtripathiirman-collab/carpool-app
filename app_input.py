@@ -110,4 +110,114 @@ with tab_trip:
     is_future_date = travel_date > today_date_ist
     
     date_exists = False
-    if not df_existing
+    if not df_existing.empty and "Date" in df_existing.columns:
+        target_str = travel_date.strftime("%Y-%m-%d").strip()
+        df_existing["Cleaned_Date_Str"] = pd.to_datetime(df_existing["Date"], errors='coerce').dt.strftime("%Y-%m-%d").str.strip()
+        date_exists = target_str in df_existing["Cleaned_Date_Str"].values
+
+    if is_future_date:
+        st.markdown("<div class='future-banner'><h1 style='font-size:50px;margin:0;'>🔮</h1><h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;'>Ye kam bhi Loudu ka hi hai</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>You cannot log entries for future dates.</h4></div>", unsafe_allow_html=True)
+
+    elif st.session_state.just_saved:
+        st.success(st.session_state.saved_message)
+        st.session_state.just_saved = False
+        time.sleep(1.5)
+        st.rerun()
+
+    # FIXED: SYNTAX Handled cleanly with complete matching layout evaluation
+    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
+        st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
+
+    else:
+        commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
+        if not commuters: commuters = all_commuters
+
+        st.markdown("#### ⚡ Real-Time Status Preview")
+        preview_cols = st.columns(len(all_commuters))
+        
+        t_driver = st.session_state.get("temp_driver", commuters[0])
+        t_full = st.session_state.get("temp_full", [])
+        t_half = st.session_state.get("temp_half", [])
+
+        for idx, person in enumerate(all_commuters):
+            with preview_cols[idx]:
+                st.markdown(f"<div style='text-align: center; font-weight: 800; color: #FFFFFF;'>{person}</div>", unsafe_allow_html=True)
+                if person in st.session_state.holiday_list:
+                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-holiday">🌴 Leave</span></div>', unsafe_allow_html=True)
+                elif person == t_driver:
+                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-driver">👑 Wheel</span></div>', unsafe_allow_html=True)
+                elif person in t_full:
+                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-full">🚗 Full</span></div>', unsafe_allow_html=True)
+                elif person in t_half:
+                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-half">🌤️ Half</span></div>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<div style="text-align:center; color:rgba(255,255,255,0.4); font-size:11px;">---</div>', unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
+        st.session_state.temp_driver = driver
+        
+        passenger_options = [c for c in commuters if c != driver]
+        full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
+        st.session_state.temp_full = full_day
+        
+        half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
+        st.session_state.temp_half = half_day
+
+        if st.button("💾 SAVE TRIP TO LEDGER"):
+            is_valid_submission = True
+            if TOKEN and REPO:
+                try:
+                    r_emergency = requests.get(f"{TRIP_URL}?final_check={random.randint(1, 1000000)}", headers=HEADERS)
+                    if r_emergency.status_code == 200:
+                        df_emergency = pd.read_csv(io.StringIO(base64.b64decode(r_emergency.json()["content"]).decode("utf-8")))
+                        if not df_emergency.empty and "Date" in df_emergency.columns:
+                            t_emergency_str = travel_date.strftime("%Y-%m-%d").strip()
+                            df_emergency["Emergency_Date_Str"] = pd.to_datetime(df_emergency["Date"], errors='coerce').dt.strftime("%Y-%m-%d").str.strip()
+                            if t_emergency_str in df_emergency["Emergency_Date_Str"].values and not st.session_state.is_admin:
+                                is_valid_submission = False
+                except Exception:
+                    pass
+
+            if not is_valid_submission:
+                st.error("🛑 Log alert! Entry exists. Refreshing workspace...")
+                time.sleep(2)
+                st.rerun()
+            else:
+                full_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
+                half_str = ", ".join([p.strip().title() for p in half_day]) if half_day else "None"
+                
+                new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver.strip().title(), "Full Day Passengers": full_str, "Half Day Passengers": half_str}])
+                df_final = pd.concat([df_existing[df_existing["Date"].astype(str) != str(travel_date)], new_row], ignore_index=True) if not df_existing.empty else new_row
+                
+                if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
+                if "Emergency_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Emergency_Date_Str"])
+                
+                payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
+                
+                r_sha = requests.get(f"{TRIP_URL}?getsha={random.randint(1, 1000000)}", headers=HEADERS)
+                if r_sha.status_code == 200: payload["sha"] = r_sha.json()["sha"]
+                
+                res_put = requests.put(TRIP_URL, headers=HEADERS, json=payload)
+                if res_put.status_code in [200, 201]:
+                    try:
+                        w_msg = (
+                            f"🌅 *MG Carpool Hub Summary — {travel_date}*\n\n"
+                            f"👑 *Driver:* {driver.strip().title()}\n"
+                            f"🚗 *Full-Day Passengers:* {full_str}\n"
+                            f"🌤️ *Half-Day Passengers:* {half_str}\n\n"
+                            f"📊 _Ledger updated seamlessly!_ 💸"
+                        )
+                        g_instance = st.secrets.get("GREEN_INSTANCE_ID", "")
+                        g_token = st.secrets.get("TOKEN_PART_1", "") + st.secrets.get("TOKEN_PART_2", "")
+                        w_url = f"https://api.green-api.com/waInstance{g_instance}/sendMessage/{g_token}"
+                        w_payload = {"chatId": st.secrets.get("WHATSAPP_GROUP_ID", ""), "message": w_msg}
+                        requests.post(w_url, json=w_payload, headers={"Content-Type": "application/json"}, timeout=5)
+                    except Exception:
+                        pass
+
+                    st.toast(f"🚗 Commute log saved for {travel_date}!", icon="✅")
+                    st.balloons()
+                    st.session_state.just_saved = True
+                    st.session_state.saved_message = f"🎉 Trip saved & WhatsApp Group Notified!"
