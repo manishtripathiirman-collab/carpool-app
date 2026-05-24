@@ -37,11 +37,7 @@ st.markdown(
     div[role="listbox"] li:hover { background-color: #334155 !important; }
     div[data-baseweb="tag"] { background-color: #334155 !important; border-radius: 6px; }
     div[data-baseweb="tag"] span { color: #FFFFFF !important; }
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 15px; }
-    .stTabs [data-baseweb="tab"] { background-color: rgba(15, 23, 42, 0.6) !important; border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 8px 8px 0px 0px; padding: 10px 20px !important; color: #94A3B8 !important; font-weight: 700; }
-    .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #6366F1, #4F46E5) !important; color: white !important; border-color: #6366F1 !important; }
     div.stButton > button { width: 100%; background: linear-gradient(90deg, #6366F1, #EC4899) !important; color: white !important; border-radius: 12px; font-weight: 800; padding: 14px; border: none !important; box-shadow: 0px 4px 15px rgba(236, 72, 153, 0.3); }
-    .admin-btn > div.stButton > button { background: linear-gradient(90deg, #EF4444, #DC2626) !important; box-shadow: 0px 4px 12px rgba(239, 68, 68, 0.3); }
     .lock-banner { background-color: #0F172A; border: 2px solid #EF4444; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0px 0px 20px rgba(239, 68, 68, 0.3); }
     .future-banner { background-color: #0F172A; border: 2px solid #EAB308; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0px 0px 20px rgba(234, 179, 8, 0.3); }
     </style>
@@ -61,12 +57,9 @@ utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
 
-# MANDATORY TOKEN SHIELD: Assembles your active token seamlessly to clear out dashboard latency
-t_part1 = "ghp_z7qTWNEl17v"
-t_part2 = "Nv4ZZ7ENApmnJH2TGlC2Z7gZL"
-TOKEN = t_part1 + t_part2
-
-REPO = "manishtripathirirman-collab/carpool-app"
+# FORCED AIRTIGHT SYNC: Reads strictly and cleanly from your updated Streamlit Secrets manager
+TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
+REPO = st.secrets.get("GITHUB_REPO", "").strip()
 
 HEADERS = {
     "Authorization": f"token {TOKEN}",
@@ -79,12 +72,13 @@ TRIP_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
 
 df_existing = pd.DataFrame()
 
-try:
-    r = requests.get(f"{TRIP_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
-    if r.status_code == 200:
-        df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
-except Exception:
-    pass
+if TOKEN and REPO:
+    try:
+        r = requests.get(f"{TRIP_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
+        if r.status_code == 200:
+            df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
+    except Exception:
+        pass
 
 travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_norm")
 
@@ -106,7 +100,7 @@ elif st.session_state.just_saved:
     time.sleep(1.5)
     st.rerun()
 
-# NO OVERRIDE GATEWAY: Displays warning banner to normal users completely locking form generation
+# STRICT WARNING BLOCK LAYER: Locks forms out completely for logged dates
 elif date_exists and not st.session_state.is_admin:
     st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
 
@@ -148,7 +142,7 @@ else:
                 st.session_state.saved_message = f"🎉 Trip saved cleanly to ledger!"
                 st.rerun()
             else:
-                st.error("🛑 Sync Failure: Connection refused by GitHub repository framework.")
+                st.error("🛑 Sync Failure: Token permissions restricted. Ensure classic 'repo' scope checkbox is enabled on GitHub.")
 
 st.markdown("---")
 with st.expander("🛠️ Admin Controls"):
