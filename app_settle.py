@@ -152,7 +152,6 @@ if not df_trips.empty:
     expense_keywords = []
     
     if not df_expenses.empty:
-        # FIXED: Ensured the column conditional filtering bounds are fully structured and closed cleanly
         filtered_expenses = df_expenses[(df_expenses['Clean_Date'] >= start_date) & (df_expenses['Clean_Date'] <= end_date)]
         if not filtered_expenses.empty:
             total_period_expenses = filtered_expenses['Total Amount'].sum()
@@ -198,55 +197,4 @@ if not df_trips.empty:
                         "p1_misc_gross": misc_p1_owes, "p2_misc_gross": misc_p2_owes
                     })
 
-    net_settlements = [s for s in net_settlements if round(s["Amount"], 2) > 0]
-
-    # --- TOP ROW: SCORECARDS ---
-    st.markdown("#### ⚡ Weekly Performance Scorecard")
-    m_col1, m_col2 = st.columns(2)
-    with m_col1:
-        top_driver = max(driver_tally, key=driver_tally.get) if sum(driver_tally.values()) > 0 else "None"
-        st.markdown(f'<div class="stat-container"><div class="stat-title">👑 Weekly King of Wheel</div><div class="stat-value">{top_driver} ({driver_tally.get(top_driver, 0)} Days)</div></div>', unsafe_allow_html=True)
-    with m_col2:
-        top_passenger = max(passenger_tally, key=passenger_tally.get) if sum(passenger_tally.values()) > 0 else "None"
-        st.markdown(f'<div class="stat-container"><div class="stat-title">🎒 Weekly Top Passenger</div><div class="stat-value">{top_passenger} ({int(passenger_tally.get(top_passenger, 0))} Rides)</div></div>', unsafe_allow_html=True)
-
-    tab_summary, tab_ledger = st.tabs(["💵 Payout Summary", "📋 Split Expense History"])
-
-    with tab_summary:
-        st.markdown("### 💎 Consolidated Net Pairwise Settlements")
-        if net_settlements:
-            for s in net_settlements:
-                f_name, t_name = s["From"], s["To"]
-                lines = []
-                
-                if s["p1_cp_gross"] > s["p2_cp_gross"]:
-                    lines.append(f"• 🚗 **Carpool Dues:** {f_name} owes {t_name} **₹{s['p1_cp_gross'] - s['p2_cp_gross']:.0f}**")
-                elif s["p2_cp_gross"] > s["p1_cp_gross"]:
-                    lines.append(f"• 🚗 **Carpool Dues:** {t_name} owes {f_name} **₹{s['p2_cp_gross'] - s['p1_cp_gross']:.0f}**")
-                
-                if s["p1_misc_gross"] > s["p2_misc_gross"]:
-                    lines.append(f"• 🍔 **Other Spend:** {f_name} owes {t_name} **₹{s['p1_misc_gross'] - s['p2_misc_gross']:.0f}**")
-                elif s["p2_misc_gross"] > s["p1_misc_gross"]:
-                    lines.append(f"• 🍔 **Other Spend:** {t_name} owes {f_name} **₹{s['p2_misc_gross'] - s['p1_misc_gross']:.0f}**")
-
-                breakdown_html = "<br>".join(lines) if lines else "• No segment debts."
-
-                st.markdown(f"""
-                <div class="mobile-card">
-                    <div class="badge-payout">₹{s['Amount']:.2f}</div>
-                    <div style="font-weight:700; font-size:16px; color:#F8FAFC;">👉 {f_name}</div>
-                    <div style="font-size:13px; color:#94A3B8; margin-top:2px;">Owes net single payout directly to <b>{t_name}</b></div>
-                    <div class="breakdown-text">
-                        <b>📝 Itemized Calculations Breakup:</b><br>
-                        {breakdown_html}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # --- CONSOLIDATED WHATSAPP OUTPUT ENGINE ---
-            header_emoji, header_title = "🚗", "Carpool Net Payout Summary"
-            if expense_keywords:
-                if any(k in expense_keywords for k in ['lunch', 'food', 'snack']): header_emoji, header_title = "🍔", "MG Food & Ride Settlement Desk"
-                elif any(k in expense_keywords for k in
+    net_settlements =
