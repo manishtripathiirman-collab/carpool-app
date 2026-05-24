@@ -250,9 +250,31 @@ with tab_payout:
     """
     st.markdown(whatsapp_link_html, unsafe_allow_html=True)
 
-    # FIXED INDENTATION: Aligned the text elements cleanly to 4 spaces inside tab_payout
     st.markdown('<p class="section-title">🌱 Eco Impact Profile</p>', unsafe_allow_html=True)
     tree_days_saved = int(total_carbon_offset_kg / 0.06)
     eco_cols = st.columns(2)
     with eco_cols[0]:
-        st.metric("Avoided Footprint", f"{total_carbon_offset_kg:.1f} kg CO₂
+        # FIXED: Sealed the f-string formatting safely on a single line
+        st.metric("Avoided Footprint", f"{total_carbon_offset_kg:.1f} kg CO₂")
+    with eco_cols[1]:
+        st.metric("Equivalency Scale", f"{tree_days_saved} Tree-Days")
+
+with tab_raw:
+    # Clickable dropdown to see the dynamic daily trip logs
+    with st.expander("🚗 View Daily Trip Logs"):
+        if not df_trips.empty:
+            df_trips_display = df_trips.copy()
+            df_trips_display["Date"] = df_trips_display["Date"].dt.strftime('%Y-%m-%d')
+            df_trips_display = df_trips_display.sort_values(by="Date", ascending=False)
+            st.dataframe(df_trips_display, use_container_width=True, hide_index=True)
+        else:
+            st.info("No active ride history logged inside this window timeline.")
+
+    with st.expander("💰 View Shared Expense Bills"):
+        if not df_expenses.empty:
+            df_expenses_display = df_expenses.copy()
+            df_expenses_display["Date"] = df_expenses_display["Date"].dt.strftime('%Y-%m-%d')
+            df_expenses_display = df_expenses_display.sort_values(by="Date", ascending=False)
+            st.dataframe(df_expenses_display, use_container_width=True, hide_index=True)
+        else:
+            st.info("No active shared bills captured inside this timeline window.")
