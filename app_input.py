@@ -125,22 +125,4 @@ with tab_trip:
         date_exists = (target_dash in df_existing["Cleaned_Date_Str"].values) or (target_slash in df_existing["Cleaned_Date_Str"].values)
 
     if is_future_date:
-        st.markdown("<div class='future-banner'><h1 style='font-size:50px;margin:0;'>🔮</h1><h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;'>Ye kam bhi Loudu ka hi hai</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>You cannot log entries for future dates.</h4></div>", unsafe_allow_html=True)
-        if st.button("🔙 GO BACK / CHANGE DATE", key="back_future_btn"):
-            st.session_state["reset_trigger"] += 1
-            st.rerun()
-
-    elif st.session_state.just_saved:
-        st.success(st.session_state.saved_message)
-        st.session_state.just_saved = False
-        time.sleep(1.5)
-        st.rerun()
-
-    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
-        st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
-        if st.button("🔙 GO BACK / CHANGE DATE", key="back_lock_btn"):
-            st.session_state["reset_trigger"] += 1
-            st.rerun()
-
-    else:
-        commuters =
+        st.markdown("<div class='future-banner'><h1 style='font-size:50px;margin:0;'>🔮</h1><h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:
