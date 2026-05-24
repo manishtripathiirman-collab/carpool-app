@@ -150,7 +150,6 @@ with tab_trip:
         t_full = st.session_state.get("temp_full", [])
         t_half = st.session_state.get("temp_half", [])
 
-        # SAFE LOOKUP: Replaced raw long HTML elements with bulletproof short native tags
         for idx, person in enumerate(all_commuters):
             with preview_cols[idx]:
                 st.write(f"**{person}**")
@@ -196,72 +195,4 @@ with tab_trip:
             
             payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
             
-            r_sha = requests.get(f"{TRIP_URL}?getsha={random.randint(1, 1000000)}", headers=HEADERS)
-            if r_sha.status_code == 200: payload["sha"] = r_sha.json()["sha"]
-            
-            res_put = requests.put(TRIP_URL, headers=HEADERS, json=payload)
-            if res_put.status_code in [200, 201]:
-                st.toast(f"🚗 Commute log saved for {travel_date}!", icon="✅")
-                st.session_state.just_saved = True
-                st.session_state.saved_message = f"🎉 Trip saved cleanly to ledger!"
-                st.session_state.disable_lock = True
-                st.rerun()
-            else:
-                st.error(f"🛑 Sync Failure updating ledger file.")
-
-with tab_expense:
-    st.markdown("### 💰 Add Shared Expense")
-    exp_date = st.date_input("Date of Expense", today_date_ist, key="exp_date_picker")
-    payer = st.selectbox("Who Paid the Bill?", all_commuters, key="exp_payer")
-    amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=0.0, step=50.0)
-    item_desc = st.text_input("What was this for?", placeholder="e.g., Office Lunch, Turf booking, Snacks")
-    
-    st.markdown("#### 👥 Split Amount Among Whom?")
-    selected_consumers = []
-    
-    cols = st.columns(len(all_commuters))
-    for idx, person in enumerate(all_commuters):
-        with cols[idx]:
-            if st.checkbox(person, value=True, key=f"share_check_{person}"):
-                selected_consumers.append(person.strip().title())
-
-    if st.button("💸 DISTRIBUTE & SAVE EXPENSE"):
-        if amount <= 0.0 or not item_desc.strip() or len(selected_consumers) == 0:
-            st.error("🛑 Fill all details properly! Amount must be > 0 and at least one person chosen.")
-        else:
-            with st.spinner("Saving expense..."):
-                split_share = round(amount / len(selected_consumers), 2)
-                new_exp_row = pd.DataFrame([{"Date": str(exp_date), "Paid By": payer.strip().title(), "Total Amount": amount, "Description": item_desc.strip(), "Shared By": ", ".join(selected_consumers), "Per Head Cost": split_share}])
-                df_exp_final = pd.concat([df_exp_existing, new_exp_row], ignore_index=True) if not df_exp_existing.empty else new_exp_row
-                payload_exp = {"message": f"Log expense: {item_desc}", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                
-                r_exp_sha = requests.get(f"{EXPENSE_URL}?getexpsha={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_exp_sha.status_code == 200: payload_exp["sha"] = r_exp_sha.json()["sha"]
-                
-                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
-                    st.toast(f"💸 Bill split recorded for {item_desc}!", icon="💰")
-                    st.success("💸 Expense Saved Successfully!")
-                    time.sleep(1.5)
-                    st.rerun()
-
-st.markdown("---")
-with st.expander("🛠️ Admin Management Suite"):
-    if not st.session_state.is_admin:
-        admin_pin = st.text_input("Enter Admin PIN", type="password", key="pin_input_field")
-        if admin_pin == "9999":
-            st.session_state.is_admin = True
-            st.rerun()
-    
-    if st.session_state.is_admin:
-        st.success("👑 Admin Rights Active - Complete Database Control Enabled")
-        if st.button("🔙 EXIT ADMIN MODE", key="exit_admin_btn"):
-            st.session_state.is_admin = False
-            st.rerun()
-        
-        st.markdown("---")
-        st.markdown("#### 🌴 Leave Configuration")
-        selected_holidays = []
-        h_cols = st.columns(len(all_commuters))
-        for idx, person in enumerate(all_commuters):
-            with h_cols[idx]:
-                if st.checkbox(person, value=(person in
+            r_sha = requests.get(
