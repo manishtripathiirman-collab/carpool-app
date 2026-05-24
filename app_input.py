@@ -28,12 +28,11 @@ st.markdown(
     }
     .mobile-title { font-family: sans-serif; font-size: 24px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 20px; }
     
-    /* 📋 Form Label Anti-Truncation Rules */
     label, p, span, h2, h3, h4 { 
         color: #F1F5F9 !important; 
         font-weight: 700 !important;
-        white-space: normal !important; /* Prevents text from being forced into single-line truncation */
-        word-break: break-word !important; /* Force-wraps text safely on ultra-narrow viewports */
+        white-space: normal !important;
+        word-break: break-word !important;
         display: inline-block !important;
     }
     div[data-testid="stWidgetLabel"] {
@@ -58,31 +57,17 @@ st.markdown(
     div.stButton > button { width: 100%; background: linear-gradient(90deg, #6366F1, #EC4899) !important; color: white !important; border-radius: 12px; font-weight: 800; padding: 14px; border: none !important; box-shadow: 0px 4px 15px rgba(236, 72, 153, 0.3); }
     .admin-btn > div.stButton > button { background: linear-gradient(90deg, #EF4444, #DC2626) !important; box-shadow: 0px 4px 12px rgba(239, 68, 68, 0.3); }
     
-    /* Massive Custom Alert Banners */
     .giant-lock-banner { 
-        background-color: #0F172A; 
-        border: 3px solid #EF4444; 
-        padding: 40px 20px; 
-        border-radius: 20px; 
-        text-align: center; 
-        margin-bottom: 20px; 
-        box-shadow: 0px 0px 30px rgba(239, 68, 68, 0.4); 
+        background-color: #0F172A; border: 3px solid #EF4444; padding: 40px 20px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0px 0px 30px rgba(239, 68, 68, 0.4); 
     }
     .giant-future-banner { 
-        background-color: #0F172A; 
-        border: 3px solid #EAB308; 
-        padding: 40px 20px; 
-        border-radius: 20px; 
-        text-align: center; 
-        margin-bottom: 20px; 
-        box-shadow: 0px 0px 30px rgba(234, 179, 8, 0.4); 
+        background-color: #0F172A; border: 3px solid #EAB308; padding: 40px 20px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0px 0px 30px rgba(234, 179, 8, 0.4); 
     }
     </style>
     """, 
     unsafe_allow_html=True
 )
 
-# Regular hyphen-dash with ultra-small lowercase mantri signature
 st.markdown('<p class="mobile-title">🌅 MG Carpool Hub - <span style="font-size: 10px; font-weight: 400; color: #64748B; text-transform: lowercase; vertical-align: middle;">mantri</span></p>', unsafe_allow_html=True)
 
 all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
@@ -92,14 +77,13 @@ utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
 
-# State Management Engine
+# State Engine
 if "holiday_list" not in st.session_state: st.session_state.holiday_list = []
 if "just_saved" not in st.session_state: st.session_state.just_saved = False
 if "just_saved_exp" not in st.session_state: st.session_state.just_saved_exp = False
 if "saved_message" not in st.session_state: st.session_state.saved_message = ""
 if "last_processed_date" not in st.session_state: st.session_state.last_processed_date = None
 if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
-if "disable_exp_lock" not in st.session_state: st.session_state.disable_exp_lock = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
 if "reset_trigger" not in st.session_state: st.session_state["reset_trigger"] = 0
 
@@ -259,13 +243,14 @@ with tab_expense:
         default_amount = 0.0
         default_desc = ""
         default_shares = all_commuters
-        selected_target_row_idx = None
         expense_exists = False
+        
+        # Build strict matching strings for tracking dates
+        t_dash_e = exp_date.strftime("%Y-%m-%d").strip()
+        t_slash_e = exp_date.strftime("%Y/%m/%d").strip()
         
         date_matches = pd.DataFrame()
         if not df_exp_existing.empty and "Date" in df_exp_existing.columns:
-            t_dash_e = exp_date.strftime("%Y-%m-%d").strip()
-            t_slash_e = exp_date.strftime("%Y/%m/%d").strip()
             df_exp_existing["Cleaned_Date_Str"] = df_exp_existing["Date"].astype(str).str.strip()
             date_matches = df_exp_existing[(df_exp_existing["Cleaned_Date_Str"] == t_dash_e) | (df_exp_existing["Cleaned_Date_Str"] == t_slash_e)]
 
@@ -278,7 +263,6 @@ with tab_expense:
                 selected_desc = st.selectbox("Select existing description to modify:", desc_list)
                 
                 target_row = date_matches[date_matches["Description"] == selected_desc].iloc[0]
-                selected_target_row_idx = target_row.name
                 
                 default_payer = str(target_row.get("Paid By", all_commuters[0])).strip()
                 default_amount = float(target_row.get("Total Amount", 0.0))
@@ -289,7 +273,6 @@ with tab_expense:
                 item_desc = default_desc
         else:
             item_desc = st.text_input("What was this for?", value="", placeholder="e.g., Office Lunch, Turf booking, Snacks")
-            
             if not date_matches.empty and item_desc.strip():
                 date_matches["Cleaned_Desc_Str"] = date_matches["Description"].astype(str).str.strip().str.lower()
                 expense_exists = item_desc.strip().lower() in date_matches["Cleaned_Desc_Str"].values
@@ -332,8 +315,22 @@ with tab_expense:
                         split_share = round(amount / len(selected_consumers), 2)
                         new_exp_row = pd.DataFrame([{"Date": str(exp_date), "Paid By": payer.strip().title(), "Total Amount": amount, "Description": item_desc.strip(), "Shared By": ", ".join(selected_consumers), "Per Head Cost": split_share}])
                         
-                        if "Cleaned_Date_Str" in df_exp_existing.columns: df_exp_existing = df_exp_existing.drop(columns=["Cleaned_Date_Str"])
-                        if "Cleaned_Desc_Str" in df_exp_existing.columns: df_exp_existing = df_exp_existing.drop(columns=["Cleaned_Desc_Str"])
+                        # CLEAN OVERWRITE FOOTPRINT ENGINE: Bulletproof row filtration
+                        if not df_exp_existing.empty:
+                            df_exp_existing["Cleaned_Date_Str"] = df_exp_existing["Date"].astype(str).str.strip()
+                            df_exp_existing["Cleaned_Desc_Str"] = df_exp_existing["Description"].astype(str).str.strip().str.lower()
+                            
+                            if edit_mode:
+                                # Eliminate the specific old entry from database cache line entirely
+                                df_exp_final = df_exp_existing[~(((df_exp_existing["Cleaned_Date_Str"] == t_dash_e) | (df_exp_existing["Cleaned_Date_Str"] == t_slash_e)) & (df_exp_existing["Cleaned_Desc_Str"] == item_desc.strip().lower()))]
+                                df_exp_final = pd.concat([df_exp_final, new_exp_row], ignore_index=True)
+                            else:
+                                df_exp_final = pd.concat([df_exp_existing, new_exp_row], ignore_index=True)
+                        else:
+                            df_exp_final = new_exp_row
                         
-                        if edit_mode and selected_target_row_idx is not None:
-                            df_exp_final = df_exp_existing.drop(selected_target_row_idx)
+                        # Wipe runtime lookup artifacts cleanly
+                        if "Cleaned_Date_Str" in df_exp_final.columns: df_exp_final = df_exp_final.drop(columns=["Cleaned_Date_Str"])
+                        if "Cleaned_Desc_Str" in df_exp_final.columns: df_exp_final = df_exp_final.drop(columns=["Cleaned_Desc_Str"])
+                        
+                        payload_exp = {"message": f"Log expense asset: {item_desc}", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).
