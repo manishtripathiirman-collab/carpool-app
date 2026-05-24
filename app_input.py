@@ -161,4 +161,28 @@ with tab_trip:
             if TOKEN and REPO:
                 try:
                     r_emergency = requests.get(f"{TRIP_URL}?final_check={random.randint(1, 1000000)}", headers=HEADERS)
-                    if r_emergency.status_code == 20
+                    if r_emergency.status_code == 200:
+                        df_emergency = pd.read_csv(io.StringIO(base64.b64decode(r_emergency.json()["content"]).decode("utf-8")))
+                        if not df_emergency.empty and "Date" in df_emergency.columns:
+                            t_emergency_str = travel_date.strftime("%Y-%m-%d").strip()
+                            df_emergency["Emergency_Date_Str"] = pd.to_datetime(df_emergency["Date"], errors='coerce').dt.strftime("%Y-%m-%d").str.strip()
+                            if t_emergency_str in df_emergency["Emergency_Date_Str"].values and not st.session_state.is_admin:
+                                is_valid = False
+                except Exception:
+                    pass
+
+            if not is_valid:
+                st.error("🛑 Abe Loudu, data already exists on GitHub! Refreshing page...")
+                time.sleep(2)
+                st.rerun()
+            else:
+                full_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
+                half_str = ", ".join([p.strip().title() for p in half_day]) if half_day else "None"
+                
+                new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver.strip().title(), "Full Day Passengers": full_str, "Half Day Passengers": half_str}])
+                df_final = pd.concat([df_existing[df_existing["Date"].astype(str) != str(travel_date)], new_row], ignore_index=True) if not df_existing.empty else new_row
+                
+                if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
+                if "Emergency_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Emergency_Date_Str"])
+                
+                payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
