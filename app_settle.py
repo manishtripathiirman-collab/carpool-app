@@ -7,7 +7,6 @@ import random
 
 st.set_page_config(page_title="MG Settlement Engine", page_icon="📊", layout="wide")
 
-# Visual Engine matching your Input App theme
 st.markdown(
     """
     <style>
@@ -30,10 +29,10 @@ st.markdown(
         box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
     }
     .matrix-name { font-size: 20px !important; font-weight: 800 !important; color: #94A3B8 !important; }
-    .matrix-val { font-size: 36px !important; font-weight: 900 !important; margin-top: 10px; }
-    .val-positive { color: #4ADE80 !important; text-shadow: 0 0 10px rgba(74,222,128,0.2); }
-    .val-negative { color: #F87171 !important; text-shadow: 0 0 10px rgba(248,113,113,0.2); }
-    .val-zero { color: #94A3B8 !important; }
+    .matrix-val { font-size: 34px !important; font-weight: 900 !important; margin-top: 10px; }
+    .val-positive { color: #4ADE80 !important; }
+    .val-negative { color: #F87171 !important; }
+    .val-zero { color: #64748B !important; }
     </style>
     """, 
     unsafe_allow_html=True
@@ -43,7 +42,6 @@ st.markdown('<p class="main-title">📊 MG Carpool Settlement Engine</p>', unsaf
 
 all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
-# Fetch parameters directly from your newly verified vault secrets
 TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
 REPO = st.secrets.get("GITHUB_REPO", "").strip()
 
@@ -71,97 +69,62 @@ if TOKEN and REPO:
     except Exception:
         pass
 
-# Initialize Balances Matrix
 balances = {name: 0.0 for name in all_commuters}
 
-# 1. Process Carpool Commute Logs
+# 1. Commute Loops
 if not df_trips.empty:
     for _, row in df_trips.iterrows():
         driver = str(row.get("Driver", "")).strip().title()
+        full_list = [p.strip().title() for p in str(row.get("Full Day Passengers", "")).split(",") if p.strip() and p.strip().lower() != 'none']
+        half_list = [p.strip().title() for p in str(row.get("Half Day Passengers", "")).split(",") if p.strip() and p.strip().lower() != 'none']
         
-        full_passengers = str(row.get("Full Day Passengers", "")).split(",")
-        full_list = [p.strip().title() for p in full_passengers if p.strip() and p.strip().lower() != 'none']
-        
-        half_passengers = str(row.get("Half Day Passengers", "")).split(",")
-        half_list = [p.strip().title() for p in half_passengers if p.strip() and p.strip().lower() != 'none']
-        
-        total_trip_earnings = 0.0
-        
-        # Deduct from passengers, track driver earnings
+        trip_total = 0.0
         for p in full_list:
             if p in balances:
                 balances[p] -= 300.0
-                total_trip_earnings += 300.0
-                
+                trip_total += 300.0
         for p in half_list:
             if p in balances:
                 balances[p] -= 150.0
-                total_trip_earnings += 150.0
+                trip_total += 150.0
                 
         if driver in balances:
-            balances[driver] += total_trip_earnings
+            balances[driver] += trip_total
 
-# 2. Process Bill Split Expenses Logs
+# 2. Expense Loops
 if not df_expenses.empty:
     for _, row in df_expenses.iterrows():
         payer = str(row.get("Paid By", "")).strip().title()
-        total_amt = float(row.get("Total Amount", 0.0))
+        total_amount = float(row.get("Total Amount", 0.0))
+        consumer_list = [p.strip().title() for p in str(row.get("Shared By", "")).split(",") if p.strip()]
         
-        shared_with = str(row.get("Shared By", "")).split(",")
-        shared_list = [p.strip().title() for p in shared_with if p.strip()]
-        
-        if total_amt > 0 and len(shared_list) > 0:
-            per_head = round(total_amt / len(shared_list), 2)
-            
-            # Deduct individual shares
-            for p in shared_list:
+        if total_amount > 0 and len(consumer_list) > 0:
+            per_person_cost = round(total_amount / len(consumer_list), 2)
+            for p in consumer_list:
                 if p in balances:
-                    balances[p] -= per_head
-            # Credit the full amount back to the payer
+                    balances[p] -= per_person_cost
             if payer in balances:
-                balances[payer] += total_amt
+                balances[payer] += total_amount
 
-# Visual Interface Matrix Generator
-st.markdown("### 🟢 Current Standing Matrix")
+st.markdown("### 🟢 Current Standings Matrix")
 cols = st.columns(len(all_commuters))
-
 for idx, name in enumerate(all_commuters):
-    final_bal = round(balances[name], 2)
+    val = round(balances[name], 2)
     with cols[idx]:
-        if final_bal > 0:
-            val_class = "val-positive"
-            prefix = "+"
-        elif final_bal < 0:
-            val_class = "val-negative"
-            prefix = ""
+        if val > 0:
+            v_class = "val-positive"; p_sign = "+"
+        elif val < 0:
+            v_class = "val-negative"; p_sign = ""
         else:
-            val_class = "val-zero"
-            prefix = ""
+            v_class = "val-zero"; p_sign = ""
             
-        st.markdown(
-            f"""
-            <div class="matrix-card">
-                <div class="matrix-name">{name}</div>
-                <div class="matrix-val {val_class}">{prefix}₹{final_bal:,}</div>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
+        st.markdown(f'<div class="matrix-card"><div class="matrix-name">{name}</div><div class="matrix-val {v_class}">{p_sign}₹{val:,}</div></div>', unsafe_allow_html=True)
 
 st.markdown("<br><hr>", unsafe_allow_html=True)
-
-# Detailed Ledger Overviews
 col_left, col_right = st.columns(2)
 with col_left:
-    st.markdown("#### 🚗 Historical Travel History")
-    if not df_trips.empty:
-        st.dataframe(df_trips.drop(columns=["Cleaned_Date_Str"], errors="ignore"), use_container_width=True)
-    else:
-        st.info("No recorded travel history found inside carpool_logs.csv")
-
+    st.markdown("#### 🚗 Travel History Logs")
+    st.dataframe(df_trips, use_container_width=True) if not df_trips.empty else st.info("No logs found.")
 with col_right:
-    st.markdown("#### 🍔 Bill Split History")
-    if not df_expenses.empty:
-        st.dataframe(df_expenses, use_container_width=True)
-    else:
-        st.info("No expense entries logged inside carpool_expenses.csv")
+    st.markdown("#### 💰 Shared Expenses History Logs")
+    st.dataframe(df_expenses, use_container_width=True) if not df_expenses.empty else st.info("No logs found.")
