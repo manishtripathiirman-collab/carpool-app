@@ -169,4 +169,48 @@ with tab_trip:
         
         st.markdown("<br>", unsafe_allow_html=True)
 
-        driver = st.selectbox
+        driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
+        st.session_state.temp_driver = driver
+        
+        passenger_options = [c for c in commuters if c != driver]
+        full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
+        st.session_state.temp_full = full_day
+        
+        half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
+        st.session_state.temp_half = half_day
+
+        if st.button("💾 SAVE TRIP TO LEDGER"):
+            full_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
+            half_str = ", ".join([p.strip().title() for p in half_day]) if half_day else "None"
+            
+            new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver.strip().title(), "Full Day Passengers": full_str, "Half Day Passengers": half_str}])
+            
+            if date_exists and st.session_state.is_admin and not df_existing.empty:
+                t_dash = travel_date.strftime("%Y-%m-%d").strip()
+                t_slash = travel_date.strftime("%Y/%m/%d").strip()
+                df_existing["Cleaned_Date_Str"] = df_existing["Date"].astype(str).str.strip()
+                df_cleaned_base = df_existing[(df_existing["Cleaned_Date_Str"] != t_dash) & (df_existing["Cleaned_Date_Str"] != t_slash)]
+                df_final = pd.concat([df_cleaned_base, new_row], ignore_index=True)
+            else:
+                df_final = pd.concat([df_existing, new_row], ignore_index=True) if not df_existing.empty else new_row
+            
+            if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
+            
+            payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
+            
+            r_sha = requests.get(f"{TRIP_URL}?getsha={random.randint(1, 1000000)}", headers=HEADERS)
+            if r_sha.status_code == 200: payload["sha"] = r_sha.json()["sha"]
+            
+            res_put = requests.put(TRIP_URL, headers=HEADERS, json=payload)
+            if res_put.status_code in [200, 201]:
+                st.toast(f"🚗 Commute log saved for {travel_date}!", icon="✅")
+                st.session_state.just_saved = True
+                st.session_state.saved_message = f"🎉 Trip saved cleanly to ledger!"
+                st.session_state.disable_lock = True
+                st.rerun()
+            else:
+                st.error(f"🛑 Sync Failure updating ledger file.")
+
+with tab_expense:
+    st.markdown("### 💰 Add Shared Expense")
+    exp_date = st.date_input("Date of
