@@ -22,7 +22,7 @@ st.markdown(
         padding: 15px !important; 
         border-radius: 16px !important; 
         border: 1px solid rgba(255, 255, 255, 0.08) !important; 
-        margin-top: 35px !important;
+        margin-top: 40px !important;
         margin-bottom: 30px !important;
     }
     .main-title { font-size: 22px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 2px; text-align: center; }
@@ -49,13 +49,6 @@ st.markdown(
     
     /* WhatsApp Box */
     .whatsapp-box { background: #151F32; border-radius: 10px; padding: 10px; border-left: 3px solid #10B981; font-family: monospace; font-size: 11px; color: #E2E8F0; }
-    
-    /* Eco Box */
-    .eco-box {
-        background: linear-gradient(135deg, #064E3B, #022C22); border: 1px solid rgba(5, 150, 105, 0.4);
-        border-radius: 12px; padding: 12px; margin-top: 12px;
-    }
-    .eco-title { color: #34D399 !important; font-size: 12px !important; font-weight: 800 !important; text-transform: uppercase; letter-spacing: 0.5px; }
     
     /* Compact Link Button */
     .whatsapp-btn {
@@ -257,16 +250,9 @@ with tab_payout:
     """
     st.markdown(whatsapp_link_html, unsafe_allow_html=True)
 
-    # Lean Eco Impact Panel
-    tree_days_saved = int(total_carbon_offset_kg / 0.06) 
-    st.markdown(
-        f"""
-        <div class="eco-box">
-            <div class="eco-title">🌱 Eco Impact Profile</div>
-            <div class="scorecard-row" style="margin-top: 6px;">
-                <div class="scorecard-box" style="background:rgba(0,0,0,0.25); border:none;">
-                    <div class="scorecard-label" style="color:#A7F3D0;">Avoided Footprint</div>
-                    <div class="scorecard-val" style="color:#34D399; font-size:16px;">{total_carbon_offset_kg:.1f} kg CO₂</div>
-                </div>
-                <div class="scorecard-box" style="background:rgba(0,0,0,0.25); border:none;">
-                    <div class="score
+    # FIXED: Replaced unsafe HTML string variables with rock-solid native containers
+    st.markdown('<p class="section-title">🌱 Eco Impact Profile</p>', unsafe_allow_html=True)
+    with st.container():
+        tree_days_saved = int(total_carbon_offset_kg / 0.06)
+        eco_cols = st.columns(2)
+        with eco_cols[0]:
