@@ -69,9 +69,8 @@ utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
 
-# SECURE Handshake: Pulls parameters seamlessly from server context fields
-TOKEN = st.secrets.get("GITHUB_TOKEN", "")
-REPO = st.secrets.get("GITHUB_REPO", "")
+TOKEN = st.secrets.get("GITHUB_TOKEN", "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")
+REPO = st.secrets.get("GITHUB_REPO", "manishtripathirirman-collab/carpool-app")
 
 HEADERS = {
     "Authorization": f"token {TOKEN}",
@@ -95,7 +94,7 @@ if TOKEN and REPO:
         r_e = requests.get(f"{EXPENSE_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
         if r_e.status_code == 200:
             df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
-    except Exception as e:
+    except Exception:
         pass
 
 tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
@@ -125,7 +124,7 @@ with tab_trip:
         time.sleep(1.5)
         st.rerun()
 
-    # THE CHOSEN ONE: DUPLICATE RECORD PROTECTION TRIGGER
+    # THE CHOSEN ONE: REGULAR LOCKOUT (Bypassed ONLY if st.session_state.is_admin is True)
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
         st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
 
@@ -168,22 +167,13 @@ with tab_trip:
 
         if st.button("💾 SAVE TRIP TO LEDGER"):
             is_valid_submission = True
-            if TOKEN and REPO:
-                try:
-                    r_emergency = requests.get(f"{TRIP_URL}?final_check={random.randint(1, 1000000)}", headers=HEADERS)
-                    if r_emergency.status_code == 200:
-                        df_emergency = pd.read_csv(io.StringIO(base64.b64decode(r_emergency.json()["content"]).decode("utf-8")))
-                        if not df_emergency.empty and "Date" in df_emergency.columns:
-                            df_emergency["Emergency_Date_Str"] = df_emergency["Date"].astype(str).str.strip()
-                            t_dash = travel_date.strftime("%Y-%m-%d").strip()
-                            t_slash = travel_date.strftime("%Y/%m/%d").strip()
-                            if (t_dash in df_emergency["Emergency_Date_Str"].values or t_slash in df_emergency["Emergency_Date_Str"].values) and not st.session_state.is_admin:
-                                is_valid_submission = False
-                except Exception:
-                    pass
+            
+            # Non-admins get stopped if the date already exists
+            if date_exists and not st.session_state.is_admin:
+                is_valid_submission = False
 
             if not is_valid_submission:
-                st.error("🛑 Log alert! Entry exists. Refreshing workspace...")
+                st.error("🛑 Request Denied: Overriding logs for this date is strictly prohibited!")
                 time.sleep(2)
                 st.rerun()
             else:
@@ -191,10 +181,19 @@ with tab_trip:
                 half_str = ", ".join([p.strip().title() for p in half_day]) if half_day else "None"
                 
                 new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver.strip().title(), "Full Day Passengers": full_str, "Half Day Passengers": half_str}])
-                df_final = pd.concat([df_existing[df_existing["Date"].astype(str) != str(travel_date)], new_row], ignore_index=True) if not df_existing.empty else new_row
+                
+                # INTEGRATED ADMIN REPLACEMENT ENGINE: 
+                # If date exists and user is admin, drop the old matching row first before appending the new layout.
+                if date_exists and st.session_state.is_admin and not df_existing.empty:
+                    t_dash = travel_date.strftime("%Y-%m-%d").strip()
+                    t_slash = travel_date.strftime("%Y/%m/%d").strip()
+                    df_existing["Cleaned_Date_Str"] = df_existing["Date"].astype(str).str.strip()
+                    df_cleaned_base = df_existing[(df_existing["Cleaned_Date_Str"] != t_dash) & (df_existing["Cleaned_Date_Str"] != t_slash)]
+                    df_final = pd.concat([df_cleaned_base, new_row], ignore_index=True)
+                else:
+                    df_final = pd.concat([df_existing, new_row], ignore_index=True) if not df_existing.empty else new_row
                 
                 if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
-                if "Emergency_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Emergency_Date_Str"])
                 
                 payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
                 
@@ -211,10 +210,10 @@ with tab_trip:
                             f"🌤️ *Half-Day Passengers:* {half_str}\n\n"
                             f"📊 _Ledger updated seamlessly!_ 💸"
                         )
-                        g_instance = st.secrets.get("GREEN_INSTANCE_ID", "")
-                        g_token = st.secrets.get("TOKEN_PART_1", "") + st.secrets.get("TOKEN_PART_2", "")
+                        g_instance = st.secrets.get("GREEN_INSTANCE_ID", "7107629959")
+                        g_token = st.secrets.get("TOKEN_PART_1", "b4d8dbc05e844dbfa442f027bb047d5e") + st.secrets.get("TOKEN_PART_2", "fef218319954ae4bc")
                         w_url = f"https://api.green-api.com/waInstance{g_instance}/sendMessage/{g_token}"
-                        w_payload = {"chatId": st.secrets.get("WHATSAPP_GROUP_ID", ""), "message": w_msg}
+                        w_payload = {"chatId": st.secrets.get("WHATSAPP_GROUP_ID", "120363025463728192@g.us"), "message": w_msg}
                         requests.post(w_url, json=w_payload, headers={"Content-Type": "application/json"}, timeout=5)
                     except Exception:
                         pass
@@ -295,7 +294,6 @@ with st.expander("🛠️ Admin Controls (Authorized Only)"):
                 df_final = df_existing[df_existing["Date"].astype(str) != str(delete_date)]
                 
                 if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
-                if "Emergency_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Emergency_Date_Str"])
                 
                 payload = {"message": f"Admin delete trip: {delete_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
                 r_del_sha = requests.get(f"{TRIP_URL}?delsha={random.randint(1, 1000000)}", headers=HEADERS)
