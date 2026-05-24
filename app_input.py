@@ -140,4 +140,82 @@ with tab_trip:
     if is_future_date:
         st.markdown(
             """
-            <div class
+            <div class='giant-future-banner'>
+                <h1 style='font-size:75px;margin:0;'>🔮</h1>
+                <h2 style='font-size:38px;color:#EAB308;font-weight:900;margin:15px 0;line-height:1.2;'>Ye kam bhi Loudu ka hi hai</h2>
+                <h4 style='font-size:20px;color:#F1F5F9;font-weight:700;margin:0;'>You cannot log entries for future dates.</h4>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+        if st.button("🔙 GO BACK / CHANGE DATE", key="back_future_btn"):
+            st.session_state["reset_trigger"] += 1
+            st.rerun()
+
+    elif st.session_state.just_saved:
+        st.success(st.session_state.saved_message)
+        st.session_state.just_saved = False
+        time.sleep(1.5)
+        st.rerun()
+
+    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
+        st.markdown(
+            """
+            <div class='giant-lock-banner'>
+                <h1 style='font-size:75px;margin:0;'>🛑</h1>
+                <h2 style='font-size:38px;color:#EF4444;font-weight:900;margin:15px 0;line-height:1.2;'>Abe Loudu dubara kyun kar raha!</h2>
+                <h4 style='font-size:20px;color:#F1F5F9;font-weight:700;margin:0;'>Ab mantri karega Sahi.</h4>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+        if st.button("🔙 GO BACK / CHANGE DATE", key="back_lock_btn"):
+            st.session_state["reset_trigger"] += 1
+            st.rerun()
+
+    else:
+        commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
+        if not commuters: commuters = all_commuters
+
+        driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
+        passenger_options = [c for c in commuters if c != driver]
+        full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
+        half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
+
+        if st.button("💾 SAVE TRIP TO LEDGER"):
+            full_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
+            half_str = ", ".join([p.strip().title() for p in half_day]) if half_day else "None"
+            
+            new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver.strip().title(), "Full Day Passengers": full_str, "Half Day Passengers": half_str}])
+            
+            if date_exists and st.session_state.is_admin and not df_existing.empty:
+                t_dash = travel_date.strftime("%Y-%m-%d").strip()
+                t_slash = travel_date.strftime("%Y/%m/%d").strip()
+                df_existing["Cleaned_Date_Str"] = df_existing["Date"].astype(str).str.strip()
+                df_cleaned_base = df_existing[(df_existing["Cleaned_Date_Str"] != t_dash) & (df_existing["Cleaned_Date_Str"] != t_slash)]
+                df_final = pd.concat([df_cleaned_base, new_row], ignore_index=True)
+            else:
+                df_final = pd.concat([df_existing, new_row], ignore_index=True) if not df_existing.empty else new_row
+            
+            if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
+            
+            payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
+            
+            sha_query_url = f"{TRIP_URL}?cb={random.randint(1, 1000000)}"
+            r_sha = requests.get(url=sha_query_url, headers=HEADERS)
+            if r_sha.status_code == 200: payload["sha"] = r_sha.json()["sha"]
+            
+            res_put = requests.put(TRIP_URL, headers=HEADERS, json=payload)
+            if res_put.status_code in [200, 201]:
+                st.toast(f"🚗 Commute log saved for {travel_date}!", icon="✅")
+                st.session_state.just_saved = True
+                st.session_state.saved_message = f"🎉 Trip saved cleanly to ledger!"
+                st.session_state.disable_lock = True
+                st.rerun()
+            else:
+                st.error(f"🛑 Sync Failure updating ledger file.")
+
+with tab_expense:
+    st.markdown("### 💰 Shared Expense Desk")
+    
+    edit_mode = st.checkbox
