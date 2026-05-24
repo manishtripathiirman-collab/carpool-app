@@ -71,7 +71,6 @@ if "last_processed_date" not in st.session_state: st.session_state.last_processe
 if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
 
-# SAFE STATE RESET: We generate an independent trigger index instead of hard-assigning values to a bounded key
 if "reset_trigger" not in st.session_state:
     st.session_state["reset_trigger"] = 0
 
@@ -106,7 +105,6 @@ if TOKEN and REPO:
 tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
 
 with tab_trip:
-    # AIRTIGHT FIX: Appending the dynamic reset_trigger to the key allows Streamlit to safely re-render the widget fresh without any state collision errors
     travel_date = st.date_input(
         "Date of Travel", 
         today_date_ist, 
@@ -218,4 +216,67 @@ with tab_expense:
     exp_date = st.date_input("Date of Expense", today_date_ist, key="exp_date_picker")
     payer = st.selectbox("Who Paid the Bill?", all_commuters, key="exp_payer")
     amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=0.0, step=50.0)
-    item_desc = st
+    item_desc = st.text_input("What was this for?", placeholder="e.g., Office Lunch, Turf booking, Snacks")
+    
+    # ⚡ RESTORED TICKBOX SELECTION ROW ⚡
+    st.markdown("#### 👥 Split Amount Among Whom?")
+    selected_consumers = []
+    cols = st.columns(len(all_commuters))
+    for idx, person in enumerate(all_commuters):
+        with cols[idx]:
+            # By default, check everyone including the payer to distribute evenly
+            if st.checkbox(person, value=True, key=f"share_check_{person}"):
+                selected_consumers.append(person.strip().title())
+
+    if st.button("💸 DISTRIBUTE & SAVE EXPENSE"):
+        if amount <= 0.0 or not item_desc.strip() or len(selected_consumers) == 0:
+            st.error("🛑 Fill all details properly! Amount must be > 0 and at least one person chosen.")
+        else:
+            with st.spinner("Saving expense..."):
+                split_share = round(amount / len(selected_consumers), 2)
+                new_exp_row = pd.DataFrame([{"Date": str(exp_date), "Paid By": payer.strip().title(), "Total Amount": amount, "Description": item_desc.strip(), "Shared By": ", ".join(selected_consumers), "Per Head Cost": split_share}])
+                df_exp_final = pd.concat([df_exp_existing, new_exp_row], ignore_index=True) if not df_exp_existing.empty else new_exp_row
+                payload_exp = {"message": f"Log expense: {item_desc}", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
+                
+                r_exp_sha = requests.get(f"{EXPENSE_URL}?getexpsha={random.randint(1, 1000000)}", headers=HEADERS)
+                if r_exp_sha.status_code == 200: payload_exp["sha"] = r_exp_sha.json()["sha"]
+                
+                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
+                    st.toast(f"💸 Bill split recorded for {item_desc}!", icon="💰")
+                    st.success("💸 Expense Saved Successfully!")
+                    time.sleep(1.5)
+                    st.rerun()
+
+st.markdown("---")
+with st.expander("🛠️ Admin Management Suite"):
+    if not st.session_state.is_admin:
+        admin_pin = st.text_input("Enter Admin PIN", type="password", key="pin_input_field")
+        if admin_pin == "9999":
+            st.session_state.is_admin = True
+            st.rerun()
+    
+    if st.session_state.is_admin:
+        st.success("👑 Admin Rights Active - Complete Database Control Enabled")
+        if st.button("🔙 EXIT ADMIN MODE", key="exit_admin_btn"):
+            st.session_state.is_admin = False
+            st.rerun()
+        
+        st.markdown("---")
+        st.markdown("#### 🌴 Leave Configuration")
+        selected_holidays = []
+        h_cols = st.columns(len(all_commuters))
+        for idx, person in enumerate(all_commuters):
+            with h_cols[idx]:
+                if st.checkbox(person, value=(person in st.session_state.holiday_list), key=f"holiday_{person}"):
+                    selected_holidays.append(person)
+        if sorted(selected_holidays) != sorted(st.session_state.holiday_list):
+            st.session_state.holiday_list = selected_holidays
+            st.rerun()
+
+        st.markdown("---")
+        st.markdown("#### ❌ Advanced Row Removal Actions")
+        
+        st.markdown("**Delete Commute Record by Date:**")
+        if not df_existing.empty:
+            dates_list = df_existing["Date"].unique().tolist()
+            target_del_date = st.selectbox("Select Commute Date to
