@@ -9,7 +9,7 @@ import random
 
 st.set_page_config(page_title="MG Logger", page_icon="🚗", layout="centered")
 
-# Visual Engine: 1:30 AM Pure Dark Modern Layout
+# Visual Engine: Pure Dark Layout with Fixed Header Margin Spacing
 st.markdown(
     """
     <style>
@@ -22,7 +22,7 @@ st.markdown(
         border-radius: 20px !important; 
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
         box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.5) !important; 
-        margin-top: 30px !important; /* Fixed padding header cutoff */
+        margin-top: 40px !important; /* Airbag padding to avoid mobile notch/bezel cutoff */
     }
     .mobile-title { font-family: sans-serif; font-size: 24px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 20px; }
     label, p, span, h2, h3, h4 { color: #F1F5F9 !important; font-weight: 700 !important; }
@@ -54,7 +54,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Small dash with ultra-small lowercase mantri signature
+# Clean minimalist layout header - Small regular dash with lowercase mantri signature
 st.markdown('<p class="mobile-title">🌅 MG Carpool Hub - <span style="font-size: 10px; font-weight: 400; color: #64748B; text-transform: lowercase; vertical-align: middle;">mantri</span></p>', unsafe_allow_html=True)
 
 all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
@@ -64,16 +64,14 @@ utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
 
-# Dynamic State Initialization
+# State Management Engine
 if "holiday_list" not in st.session_state: st.session_state.holiday_list = []
 if "just_saved" not in st.session_state: st.session_state.just_saved = False
 if "saved_message" not in st.session_state: st.session_state.saved_message = ""
 if "last_processed_date" not in st.session_state: st.session_state.last_processed_date = None
 if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
-
-if "reset_trigger" not in st.session_state:
-    st.session_state["reset_trigger"] = 0
+if "reset_trigger" not in st.session_state: st.session_state["reset_trigger"] = 0
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
 REPO = st.secrets.get("GITHUB_REPO", "").strip()
@@ -152,18 +150,3 @@ with tab_trip:
             <div class='lock-banner'>
                 <h1 style='font-size:50px;margin:0;'>🛑</h1>
                 <h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2>
-                <h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-        if st.button("🔙 GO BACK / CHANGE DATE", key="back_lock_btn"):
-            st.session_state["reset_trigger"] += 1
-            st.rerun()
-
-    else:
-        commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
-        if not commuters: commuters = all_commuters
-
-        st.markdown("#### ⚡ Real-Time Status Preview")
-        preview_cols = st.columns(len(all_commuters))
