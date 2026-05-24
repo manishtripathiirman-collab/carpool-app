@@ -71,12 +71,16 @@ if TOKEN and REPO:
 
 balances = {name: 0.0 for name in all_commuters}
 
-# 1. Commute Loops
+# 1. Commute Loops (With Robust Quote Stripping)
 if not df_trips.empty:
     for _, row in df_trips.iterrows():
-        driver = str(row.get("Driver", "")).strip().title()
-        full_list = [p.strip().title() for p in str(row.get("Full Day Passengers", "")).split(",") if p.strip() and p.strip().lower() != 'none']
-        half_list = [p.strip().title() for p in str(row.get("Half Day Passengers", "")).split(",") if p.strip() and p.strip().lower() != 'none']
+        driver = str(row.get("Driver", "")).replace('"', '').replace("'", "").strip().title()
+        
+        full_raw = str(row.get("Full Day Passengers", "")).replace('"', '').replace("'", "")
+        full_list = [p.strip().title() for p in full_raw.split(",") if p.strip() and p.strip().lower() != 'none']
+        
+        half_raw = str(row.get("Half Day Passengers", "")).replace('"', '').replace("'", "")
+        half_list = [p.strip().title() for p in half_raw.split(",") if p.strip() and p.strip().lower() != 'none']
         
         trip_total = 0.0
         for p in full_list:
@@ -91,15 +95,20 @@ if not df_trips.empty:
         if driver in balances:
             balances[driver] += trip_total
 
-# 2. Expense Loops
+# 2. Expense Loops (With Case-Insensitive Column Fallback)
 if not df_expenses.empty:
     for _, row in df_expenses.iterrows():
-        payer = str(row.get("Paid By", "")).strip().title()
+        payer = str(row.get("Paid By", "")).replace('"', '').replace("'", "").strip().title()
+        
+        # Pull amount cleanly regardless of upper/lowercase column names
+        total_amount = row.get("Total Amount", row.get("Total amount", 0.0))
         try:
-            total_amount = float(row.get("Total Amount", 0.0))
+            total_amount = float(total_amount)
         except:
             total_amount = 0.0
-        consumer_list = [p.strip().title() for p in str(row.get("Shared By", "")).split(",") if p.strip()]
+            
+        consumers_raw = str(row.get("Shared By", "")).replace('"', '').replace("'", "")
+        consumer_list = [p.strip().title() for p in consumers_raw.split(",") if p.strip()]
         
         if total_amount > 0 and len(consumer_list) > 0:
             per_person_cost = round(total_amount / len(consumer_list), 2)
