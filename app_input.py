@@ -11,65 +11,34 @@ st.set_page_config(page_title="MG Logger", page_icon="📝", layout="centered")
 # Visual Engine: Clean High-Contrast Glassmorphism Stacking System
 st.markdown("""
     <style>
-    /* Fixed Container Canvas Mapping */
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.95) 100%), 
                     url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80') !important;
-        background-size: cover !important;
-        background-position: center !important;
-        background-attachment: fixed !important;
+        background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
     }
-    
-    /* Central Content Shield Plate */
     .block-container {
-        background: rgba(15, 23, 42, 0.8) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        padding: 25px !important;
-        border-radius: 20px !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.5) !important;
-        margin-top: 20px !important;
+        background: rgba(15, 23, 42, 0.8) !important; backdrop-filter: blur(12px) !important; -webkit-backdrop-filter: blur(12px) !important;
+        padding: 25px !important; border-radius: 20px !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.5) !important; margin-top: 20px !important;
     }
-    
-    /* Typography Consistency Rules */
     .mobile-title { font-family: sans-serif; font-size: 28px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 20px; }
     label, p, span, h2, h3, h4 { color: #F1F5F9 !important; font-weight: 700 !important; }
-    
-    /* High-Contrast Input Elements Fields */
-    div[data-baseweb="select"], div[data-baseweb="base-input"], .stDateInput div {
-        background-color: #1E293B !important;
-        border-radius: 10px !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    div[data-baseweb="select"], div[data-baseweb="base-input"], .stDateInput div { 
+        background-color: #1E293B !important; border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; 
     }
-    
-    /* Force active value strings inside fields to remain crisp bone-white */
-    div[data-baseweb="select"] [data-user-value="true"],
-    .stSelectbox div [data-baseweb="select"] span,
-    div[data-baseweb="base-input"] input {
-        color: #FFFFFF !important;
-        font-weight: 700 !important;
+    div[data-baseweb="select"] [data-user-value="true"], .stSelectbox div [data-baseweb="select"] span, div[data-baseweb="base-input"] input { 
+        color: #FFFFFF !important; font-weight: 700 !important; 
     }
-    
-    /* Dropdown Options List Context Overrides */
     div[role="listbox"] { background-color: #1E293B !important; border: 1px solid rgba(255,255,255,0.2) !important; }
     div[role="listbox"] li { color: #FFFFFF !important; font-weight: 700 !important; }
     div[role="listbox"] li:hover { background-color: #334155 !important; }
-    
-    /* Selection Tags Pill Blocks */
     div[data-baseweb="tag"] { background-color: #334155 !important; border-radius: 6px; }
     div[data-baseweb="tag"] span { color: #FFFFFF !important; }
-    
-    /* Tab Navigation Array Layout Controls */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; margin-bottom: 15px; }
     .stTabs [data-baseweb="tab"] { background-color: rgba(15, 23, 42, 0.6) !important; border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 8px 8px 0px 0px; padding: 10px 20px !important; color: #94A3B8 !important; font-weight: 700; }
     .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #6366F1, #4F46E5) !important; color: white !important; border-color: #6366F1 !important; }
-    
-    /* Neon Action Button Matrix */
     div.stButton > button { width: 100%; background: linear-gradient(90deg, #6366F1, #EC4899) !important; color: white !important; border-radius: 12px; font-weight: 800; padding: 14px; border: none !important; box-shadow: 0px 4px 15px rgba(236, 72, 153, 0.3); }
     .admin-btn > div.stButton > button { background: linear-gradient(90deg, #EF4444, #DC2626) !important; box-shadow: 0px 4px 12px rgba(239, 68, 68, 0.3); }
-    
-    /* Badges & Alert Components Hierarchy */
     .neon-badge { display: inline-block; padding: 6px 14px; font-size: 11px; font-weight: 900; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
     .badge-driver { background-color: rgba(34, 197, 94, 0.25); color: #4ADE80; border: 1px solid #22C55E; box-shadow: 0 0 12px rgba(34,197,94,0.4); }
     .badge-full { background-color: rgba(56, 189, 248, 0.25); color: #38BDF8; border: 1px solid #0EA5E9; box-shadow: 0 0 12px rgba(56,189,248,0.4); }
@@ -184,6 +153,9 @@ with tab_trip:
             r_exist = requests.get(TRIP_URL, headers=HEADERS)
             if r_exist.status_code == 200: payload["sha"] = r_exist.json()["sha"]
             if requests.put(TRIP_URL, headers=HEADERS, json=payload).status_code in [200, 201]:
+                # FIXED: Pushes an instant native background notification toast and balloons
+                st.toast(f"🚗 Commute log saved for {travel_date}!", icon="✅")
+                st.balloons()
                 st.session_state.just_saved = True
                 st.session_state.saved_message = f"🎉 Trip saved successfully!"
                 st.session_state.disable_lock = True
@@ -216,6 +188,8 @@ with tab_expense:
                 r_exp = requests.get(f"{EXPENSE_URL}?ts={time.time()}", headers=HEADERS)
                 if r_exp.status_code == 200: payload_exp["sha"] = r_exp.json()["sha"]
                 if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
+                    # FIXED: Pushes an instant native expense notification toast
+                    st.toast(f"💸 Bill split recorded for {item_desc}!", icon="💰")
                     st.success("💸 Expense Saved Successfully!")
                     time.sleep(1.5)
                     st.rerun()
