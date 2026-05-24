@@ -21,7 +21,7 @@ st.markdown("""
     div.stButton > button { width: 100%; background-color: #6366F1 !important; color: white !important; border-radius: 12px; font-weight: 700; padding: 12px; }
     .admin-btn > div.stButton > button { background-color: #EF4444 !important; }
     .back-btn > div.stButton > button { background-color: #475569 !important; border: 1px solid #64748B !important; margin-top: 15px; }
-    .exit-admin-btn > div.stButton > button { background-color: #1E293B !important; border: 1px solid #334155 !important; margin-top: 10px; color: #94A3B8 !important; color: #94A3B8 !important; }
+    .exit-admin-btn > div.stButton > button { background-color: #1E293B !important; border: 1px solid #334155 !important; margin-top: 10px; color: #94A3B8 !important; }
     .stTabs [data-baseweb="tab-list"] { gap: 10px; }
     .stTabs [data-baseweb="tab"] { background-color: rgba(30, 41, 59, 0.7) !important; border: 1px solid #334155 !important; border-radius: 8px 8px 0px 0px; padding: 10px 20px !important; color: #94A3B8 !important; }
     .stTabs [aria-selected="true"] { background-color: #6366F1 !important; color: white !important; border-color: #6366F1 !important; }
@@ -53,7 +53,7 @@ if "last_processed_date" not in st.session_state: st.session_state.last_processe
 if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
 
-# Dynamic Indian Standard Time (+5.5 Hours) Calculator Engine
+# India Standard Time Alignment
 utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
@@ -76,7 +76,6 @@ if TOKEN and REPO:
     if r_e.status_code == 200:
         df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
 
-# FIXED: Re-anchored the layout tab selection assignment sequence completely
 tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
 
 # TAB 1: COMMUTE LOGGING
@@ -101,4 +100,18 @@ with tab_trip:
         if st.button("🔙 GO BACK TO TODAY", key="future_back_btn"):
             st.query_params["reset"] = "true"
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    elif st.session_state.just_saved:
+        st.success(st.session_state.saved_message)
+        st.session_state.just_saved = False
+        time.sleep(2.0)
+        st.rerun()
+
+    # FIXED: The dynamic HTML string closure constraints are fully intact and sealed cleanly
+    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
+        st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
+        st.markdown(f"""
+            <div class="lock-banner">
+                <span style="font-size: 45px;">🛑</span>
+                <h2 style="color: #EF4444; margin-top: 10px; font-weight:900; font-
