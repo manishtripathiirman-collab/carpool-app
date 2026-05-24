@@ -22,7 +22,7 @@ st.markdown("""
     /* Semi-Transparent Input Containers */
     div[data-baseweb="select"], div[data-baseweb="base-input"] { background: rgba(15, 23, 42, 0.55) !important; backdrop-filter: blur(8px); border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.15) !important; }
     
-    /* FIXED: Explicitly force selectbox inner text values and choice items to dark charcoal for maximum contrast */
+    /* Force selectbox inner text values and choice items to dark charcoal for contrast */
     div[data-baseweb="select"] [data-user-value="true"], 
     div[role="listbox"] li, 
     .stSelectbox div[data-baseweb="select"] span { 
@@ -62,77 +62,3 @@ all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 if "holiday_list" not in st.session_state: st.session_state.holiday_list = []
 if "just_saved" not in st.session_state: st.session_state.just_saved = False
 if "saved_message" not in st.session_state: st.session_state.saved_message = ""
-if "last_processed_date" not in st.session_state: st.session_state.last_processed_date = None
-if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
-if "is_admin" not in st.session_state: st.session_state.is_admin = False
-
-utc_now = datetime.datetime.utcnow()
-ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
-today_date_ist = ist_now.date()
-
-TOKEN = st.secrets.get("GITHUB_TOKEN", "")
-REPO = st.secrets.get("GITHUB_REPO", "")
-HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json"}
-
-TRIP_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
-EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
-
-df_existing = pd.DataFrame()
-df_exp_existing = pd.DataFrame()
-
-if TOKEN and REPO:
-    r = requests.get(f"{TRIP_URL}?ts={time.time()}", headers=HEADERS)
-    if r.status_code == 200:
-        df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
-    r_e = requests.get(f"{EXPENSE_URL}?ts={time.time()}", headers=HEADERS)
-    if r_e.status_code == 200:
-        df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
-
-tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
-
-# TAB 1: COMMUTE LOGGING
-with tab_trip:
-    if "reset" in st.query_params:
-        st.query_params.clear()
-        travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_reset")
-    else:
-        travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_norm")
-
-    if st.session_state.last_processed_date != str(travel_date):
-        st.session_state.disable_lock = False
-        st.session_state.last_processed_date = str(travel_date)
-
-    is_future_date = travel_date > today_date_ist
-    date_exists = str(travel_date) in df_existing["Date"].astype(str).values if not df_existing.empty else False
-
-    if is_future_date:
-        st.warning("⏳ FUTURE TRIPS NOT ALLOWED")
-        st.markdown("""
-            <div class="future-banner">
-                <span style="font-size: 45px;">🔮</span>
-                <h2 style="color: #EAB308; margin-top: 10px; font-weight:800; font-family:sans-serif;">Ye kam bhi Loudu ka hi hai</h2>
-                <h4 style="color: #F8FAFC; font-weight: 700; margin-top: 5px;">You cannot log entries for future dates.</h4>
-            </div>
-        """, unsafe_allow_html=True)
-        st.markdown('<div class="back-btn">', unsafe_allow_html=True)
-        if st.button("🔙 GO BACK TO TODAY", key="future_back_btn"):
-            st.query_params["reset"] = "true"
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    elif st.session_state.just_saved:
-        st.success(st.session_state.saved_message)
-        st.session_state.just_saved = False
-        time.sleep(2.0)
-        st.rerun()
-
-    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
-        st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
-        st.markdown(f"""
-            <div class="lock-banner">
-                <span style="font-size: 45px;">🛑</span>
-                <h2 style="color: #EF4444; margin-top: 10px; font-weight:900; font-family:sans-serif; letter-spacing: 0.5px;">Abe Loudu dubara kyun kar raha!</h2>
-                <h4 style="margin: 12px 0 0 0; color: #F8FAFC; font-weight: 700;">Ab mantri karega Sahi.</h4>
-            </div>
-        """, unsafe_allow_html=True)
-        st.markdown('<div class="back
