@@ -67,7 +67,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.markdown('<p class="main-title">💰 MG Settlement Desk</p>', unsafe_allow_html=True)
+# Premium Minimalist Header Branding
+st.markdown('<p class="main-title">💰 MG Settlement Desk — <span style="font-size: 11px; font-weight: 400; color: #64748B; text-transform: lowercase; vertical-align: middle;">mantri</span></p>', unsafe_allow_html=True)
 
 all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
@@ -247,7 +248,7 @@ with tab_payout:
     """
     st.markdown(whatsapp_link_html, unsafe_allow_html=True)
 
-    # Lean Eco Impact Panel - Perfectly Sealed Block
+    # Lean Eco Impact Panel
     tree_days_saved = int(total_carbon_offset_kg / 0.06) 
     st.markdown(
         f"""
