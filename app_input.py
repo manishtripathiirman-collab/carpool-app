@@ -26,7 +26,7 @@ st.markdown("""
     div[data-baseweb="select"], div[data-baseweb="base-input"], .stDateInput div, .stSelectbox div { 
         background-color: #1E293B !important; border-radius: 12px !important; border: 1px solid rgba(255, 255, 255, 0.3) !important; 
     }
-    div[data-baseweb="select"] *, div[data-baseweb="base-input"] *, .stDateInput div *, .stSelectbox div * { color: #FFFFFF !important; }
+    div[data-baseweb="select"] *, div[data-baseweb="base-input"] *, .stDateInput div * { color: #FFFFFF !important; }
     div[data-baseweb="select"] [data-user-value="true"], .stSelectbox div [data-baseweb="select"] span { color: #FFFFFF !important; font-weight: 700 !important; }
     div[role="listbox"] { background-color: #1E293B !important; border: 1px solid rgba(255,255,255,0.3) !important; }
     div[role="listbox"] li { color: #FFFFFF !important; font-weight: 700 !important; }
@@ -43,6 +43,8 @@ st.markdown("""
     .badge-full { background-color: rgba(56, 189, 248, 0.25); color: #38BDF8; border: 1px solid #0EA5E9; box-shadow: 0 0 12px rgba(56,189,248,0.4); }
     .badge-half { background-color: rgba(251, 191, 36, 0.25); color: #FBBF24; border: 1px solid #D97706; box-shadow: 0 0 12px rgba(251,191,36,0.4); }
     .badge-holiday { background-color: rgba(168, 85, 247, 0.25); color: #C084FC; border: 1px solid #9333EA; }
+    .lock-banner { background-color: #0F172A; border: 2px solid #EF4444; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
+    .future-banner { background-color: #0F172A; border: 2px solid #EAB308; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 0 20px rgba(234, 179, 8, 0.3); }
     </style>
 """, unsafe_allow_html=True)
 
@@ -63,173 +65,3 @@ today_date_ist = ist_now.date()
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
-HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json"}
-
-TRIP_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
-EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
-
-df_existing = pd.DataFrame()
-df_exp_existing = pd.DataFrame()
-
-if TOKEN and REPO:
-    r = requests.get(f"{TRIP_URL}?ts={time.time()}", headers=HEADERS)
-    if r.status_code == 200:
-        df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
-    r_e = requests.get(f"{EXPENSE_URL}?ts={time.time()}", headers=HEADERS)
-    if r_e.status_code == 200:
-        df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
-
-tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
-
-# TAB 1: COMMUTE LOGGING
-with tab_trip:
-    travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_norm")
-
-    if st.session_state.last_processed_date != str(travel_date):
-        st.session_state.disable_lock = False
-        st.session_state.last_processed_date = str(travel_date)
-
-    is_future_date = travel_date > today_date_ist
-    date_exists = str(travel_date) in df_existing["Date"].astype(str).values if not df_existing.empty else False
-
-    if is_future_date:
-        st.error("🔮 Ye kam bhi Loudu ka hi hai - You cannot log entries for future dates.")
-
-    elif st.session_state.just_saved:
-        st.success(st.session_state.saved_message)
-        st.session_state.just_saved = False
-        time.sleep(1.5)
-        st.rerun()
-
-    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
-        st.error("🚨 Abe Loudu dubara kyun kar raha! Ab mantri karega Sahi.")
-
-    else:
-        commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
-        if not commuters: commuters = all_commuters
-
-        st.markdown("#### ⚡ Real-Time Status Preview")
-        preview_cols = st.columns(len(all_commuters))
-        
-        t_driver = st.session_state.get("temp_driver", commuters[0])
-        t_full = st.session_state.get("temp_full", [])
-        t_half = st.session_state.get("temp_half", [])
-
-        for idx, person in enumerate(all_commuters):
-            with preview_cols[idx]:
-                st.markdown(f"<div style='text-align: center; font-weight: 800; margin-bottom: 4px; color: #FFFFFF;'>{person}</div>", unsafe_allow_html=True)
-                if person in st.session_state.holiday_list:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-holiday">🌴 Leave</span></div>', unsafe_allow_html=True)
-                elif person == t_driver:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-driver">👑 Wheel</span></div>', unsafe_allow_html=True)
-                elif person in t_full:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-full">🚗 Full</span></div>', unsafe_allow_html=True)
-                elif person in t_half:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-half">🌤️ Half</span></div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('<div style="text-align:center; color:rgba(255,255,255,0.4); font-size:11px; margin-top:5px;">---</div>', unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
-        st.session_state.temp_driver = driver
-        
-        passenger_options = [c for c in commuters if c != driver]
-        full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
-        st.session_state.temp_full = full_day
-        
-        half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
-        st.session_state.temp_half = half_day
-
-        if st.button("💾 SAVE TRIP TO LEDGER"):
-            full_day_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
-            half_day_str = ", ".join([p.strip().title() for p in half_day]) if half_day else "None"
-            new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver.strip().title(), "Full Day Passengers": full_day_str, "Half Day Passengers": half_day_str}])
-            df_final = pd.concat([df_existing[df_existing["Date"].astype(str) != str(travel_date)], new_row], ignore_index=True) if not df_existing.empty else new_row
-            payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-            r_exist = requests.get(TRIP_URL, headers=HEADERS)
-            if r_exist.status_code == 200: payload["sha"] = r_exist.json()["sha"]
-            if requests.put(TRIP_URL, headers=HEADERS, json=payload).status_code in [200, 201]:
-                st.session_state.just_saved = True
-                st.session_state.saved_message = f"🎉 Trip saved successfully!"
-                st.session_state.disable_lock = True
-                st.rerun()
-
-# TAB 2: EXPENSE LOGGING
-with tab_expense:
-    st.markdown("### 💰 Add Shared Expense")
-    exp_date = st.date_input("Date of Expense", today_date_ist, key="exp_date_picker")
-    payer = st.selectbox("Who Paid the Bill?", all_commuters, key="exp_payer")
-    amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=0.0, step=50.0)
-    item_desc = st.text_input("What was this for?", placeholder="e.g., Office Lunch, Turf booking, Snacks")
-    
-    selected_consumers = []
-    cols = st.columns(len(all_commuters))
-    for idx, person in enumerate(all_commuters):
-        with cols[idx]:
-            if st.checkbox(person, value=(person == payer), key=f"share_{person}"):
-                selected_consumers.append(person.strip().title())
-
-    if st.button("💸 DISTRIBUTE & SAVE EXPENSE"):
-        if amount <= 0.0 or not item_desc.strip() or len(selected_consumers) == 0:
-            st.error("🛑 Fill all details properly!")
-        else:
-            with st.spinner("Saving expense..."):
-                split_share = round(amount / len(selected_consumers), 2)
-                new_exp_row = pd.DataFrame([{"Date": str(exp_date), "Paid By": payer.strip().title(), "Total Amount": amount, "Description": item_desc.strip(), "Shared By": ", ".join(selected_consumers), "Per Head Cost": split_share}])
-                df_exp_final = pd.concat([df_exp_existing, new_exp_row], ignore_index=True) if not df_exp_existing.empty else new_exp_row
-                payload_exp = {"message": f"Log expense: {item_desc}", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                r_exp = requests.get(f"{EXPENSE_URL}?ts={time.time()}", headers=HEADERS)
-                if r_exp.status_code == 200: payload_exp["sha"] = r_exp.json()["sha"]
-                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
-                    st.success("💸 Expense Saved Successfully!")
-                    time.sleep(1.5)
-                    st.rerun()
-
-# MASTER ADMIN CONTROLS INTERFACE PANEL
-st.markdown("---")
-with st.expander("🛠️ Admin Controls (Authorized Only)"):
-    if not st.session_state.is_admin:
-        admin_pin = st.text_input("Enter Admin PIN", type="password", key="pin_input_field")
-        if admin_pin == "9999":
-            st.session_state.is_admin = True
-            st.rerun()
-    
-    if st.session_state.is_admin:
-        st.success("Admin Rights Unlocked")
-        if st.button("🔙 EXIT ADMIN MODE"):
-            st.session_state.is_admin = False
-            st.rerun()
-        
-        st.markdown("#### 🌴 Skip This Person (Active Leave)")
-        selected_holidays = []
-        h_cols = st.columns(len(all_commuters))
-        for idx, person in enumerate(all_commuters):
-            with h_cols[idx]:
-                if st.checkbox(person, value=(person in st.session_state.holiday_list), key=f"holiday_{person}"):
-                    selected_holidays.append(person)
-        if sorted(selected_holidays) != sorted(st.session_state.holiday_list):
-            st.session_state.holiday_list = selected_holidays
-            st.rerun()
-            
-        st.markdown("---")
-        if not df_existing.empty:
-            st.markdown("#### 🚗 Delete Travel Records")
-            delete_date = st.selectbox("Select Travel Date to Delete:", sorted(df_existing["Date"].unique(), reverse=True))
-            st.markdown('<div class="admin-btn">', unsafe_allow_html=True)
-            if st.button("🗑️ DELETE TRAVEL DATE"):
-                df_final = df_existing[df_existing["Date"].astype(str) != str(delete_date)]
-                payload = {"message": f"Admin delete trip: {delete_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                r_exist = requests.get(TRIP_URL, headers=HEADERS)
-                if r_exist.status_code == 200: payload["sha"] = r_exist.json()["sha"]
-                if requests.put(TRIP_URL, headers=HEADERS, json=payload).status_code in [200, 201]:
-                    st.error(f"🗑️ Travel record for {delete_date} wiped!")
-                    time.sleep(1.5)
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        st.markdown("---")
-        if not df_exp_existing.empty:
-            st.markdown("#### 🍔 Delete Manage Split Expenses")
-            df_exp_existing['Display_Label'] = df_exp_existing['Date'].astype(str) + " | " + df_exp_existing['Paid By'] + " | ₹" + df_exp_existing['Total Amount'].astype(str) + " (" + df_exp_existing['Description'] + ")"
-            selected
