@@ -194,3 +194,16 @@ if not df_trips.empty:
     tab_summary, tab_ledger = st.tabs(["💵 Payout Summary", "📋 Split Expense History"])
 
     with tab_summary:
+        st.markdown("### 💎 Consolidated Net Pairwise Settlements")
+        if net_settlements:
+            for s in net_settlements:
+                f_name, t_name = s["From"], s["To"]
+                lines = []
+                
+                if s["p1_cp_gross"] > s["p2_cp_gross"]:
+                    lines.append(f"• 🚗 **Carpool Dues:** {f_name} owes {t_name} **₹{s['p1_cp_gross'] - s['p2_cp_gross']:.0f}**")
+                elif s["p2_cp_gross"] > s["p1_cp_gross"]:
+                    lines.append(f"• 🚗 **Carpool Dues:** {t_name} owes {f_name} **₹{s['p2_cp_gross'] - s['p1_cp_gross']:.0f}**")
+                
+                if s["p1_misc_gross"] > s["p2_misc_gross"]:
+                    lines.append(f"• 🍔 **Other Spend:** {f_name} owes {t_name} **₹{s['p1_misc_gross'] - s
