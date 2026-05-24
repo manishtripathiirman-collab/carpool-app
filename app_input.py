@@ -53,7 +53,6 @@ if "last_processed_date" not in st.session_state: st.session_state.last_processe
 if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
 
-# India Standard Time Alignment
 utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
@@ -95,7 +94,14 @@ with tab_trip:
 
     if is_future_date:
         st.warning("⏳ FUTURE TRIPS NOT ALLOWED")
-        st.markdown('<div class="future-banner"><span style="font-size: 45px;">🔮</span><h2 style="color: #EAB308; margin-top: 10px; font-weight:800; font-family:sans-serif;">Ye kam bhi Loudu ka hi hai</h2><h4 style="color: #F8FAFC; font-weight: 700; margin-top: 5px;">You cannot log entries for future dates.</h4></div>', unsafe_allow_html=True)
+        # FIXED: Enclosed the future banner HTML string completely
+        st.markdown("""
+            <div class="future-banner">
+                <span style="font-size: 45px;">🔮</span>
+                <h2 style="color: #EAB308; margin-top: 10px; font-weight:800; font-family:sans-serif;">Ye kam bhi Loudu ka hi hai</h2>
+                <h4 style="color: #F8FAFC; font-weight: 700; margin-top: 5px;">You cannot log entries for future dates.</h4>
+            </div>
+        """, unsafe_allow_html=True)
         st.markdown('<div class="back-btn">', unsafe_allow_html=True)
         if st.button("🔙 GO BACK TO TODAY", key="future_back_btn"):
             st.query_params["reset"] = "true"
@@ -106,12 +112,4 @@ with tab_trip:
         st.success(st.session_state.saved_message)
         st.session_state.just_saved = False
         time.sleep(2.0)
-        st.rerun()
-
-    # FIXED: The dynamic HTML string closure constraints are fully intact and sealed cleanly
-    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
-        st.error("🚨 ACCESS RESTRICTED FOR THIS DATE")
-        st.markdown(f"""
-            <div class="lock-banner">
-                <span style="font-size: 45px;">🛑</span>
-                <h2 style="color: #EF4444; margin-top: 10px; font-weight:900; font-
+        st.rerun
