@@ -9,7 +9,7 @@ import random
 
 st.set_page_config(page_title="MG Logger", page_icon="📝", layout="centered")
 
-# Visual Engine: Glassmorphism Styling
+# Visual Engine: Clean High-Contrast Glassmorphism Stacking System
 st.markdown("""
     <style>
     [data-testid="stAppViewContainer"] {
@@ -18,7 +18,7 @@ st.markdown("""
         background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
     }
     .block-container {
-        background: rgba(15, 23, 42, 0.8) !important; backdrop-filter: blur(12px) !important;
+        background: rgba(15, 23, 42, 0.8) !important; backdrop-filter: blur(12px) !important; -webkit-backdrop-filter: blur(12px) !important;
         padding: 25px !important; border-radius: 20px !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;
         box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.5) !important; margin-top: 20px !important;
     }
@@ -75,7 +75,7 @@ EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.cs
 df_existing = pd.DataFrame()
 df_exp_existing = pd.DataFrame()
 
-# Fresh Cache-Busting Initialization
+# CRITICAL MASTER RUN DATA FETCH
 if TOKEN and REPO:
     try:
         r = requests.get(f"{TRIP_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
@@ -84,8 +84,8 @@ if TOKEN and REPO:
         r_e = requests.get(f"{EXPENSE_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
         if r_e.status_code == 200:
             df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
-    except Exception as e:
-        st.error(f"GitHub Init Error: {e}")
+    except Exception:
+        pass
 
 tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
 
@@ -99,7 +99,7 @@ with tab_trip:
 
     is_future_date = travel_date > today_date_ist
     
-    # Date Checking Logic
+    # EXPLICIT STRING MATCH ENGINE
     date_exists = False
     if not df_existing.empty and "Date" in df_existing.columns:
         target_str = travel_date.strftime("%Y-%m-%d").strip()
@@ -107,211 +107,4 @@ with tab_trip:
         date_exists = target_str in df_existing["Cleaned_Date_Str"].values
 
     if is_future_date:
-        st.markdown("<div class='future-banner'><h1 style='font-size:50px;margin:0;'>🔮</h1><h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;'>Ye kam bhi Loudu ka hi hai</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>You cannot log entries for future dates.</h4></div>", unsafe_allow_html=True)
-
-    elif st.session_state.just_saved:
-        st.success(st.session_state.saved_message)
-        st.session_state.just_saved = False
-        time.sleep(1.5)
-        st.rerun()
-
-    # Lock Screen Deployment
-    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
-        st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
-
-    else:
-        commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
-        if not commuters: commuters = all_commuters
-
-        st.markdown("#### ⚡ Real-Time Status Preview")
-        preview_cols = st.columns(len(all_commuters))
-        
-        t_driver = st.session_state.get("temp_driver", commuters[0])
-        t_full = st.session_state.get("temp_full", [])
-        t_half = st.session_state.get("temp_half", [])
-
-        for idx, person in enumerate(all_commuters):
-            with preview_cols[idx]:
-                st.markdown(f"<div style='text-align: center; font-weight: 800; margin-bottom: 4px; color: #FFFFFF;'>{person}</div>", unsafe_allow_html=True)
-                if person in st.session_state.holiday_list:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-holiday">🌴 Leave</span></div>', unsafe_allow_html=True)
-                elif person == t_driver:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-driver">👑 Wheel</span></div>', unsafe_allow_html=True)
-                elif person in t_full:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-full">🚗 Full</span></div>', unsafe_allow_html=True)
-                elif person in t_half:
-                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-half">🌤️ Half</span></div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('<div style="text-align:center; color:rgba(255,255,255,0.4); font-size:11px; margin-top:5px;">---</div>', unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
-        st.session_state.temp_driver = driver
-        
-        passenger_options = [c for c in commuters if c != driver]
-        full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
-        st.session_state.temp_full = full_day
-        
-        half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
-        st.session_state.temp_half = half_day
-
-        if st.button("💾 SAVE TRIP TO LEDGER"):
-            is_valid_submission = True
-            if TOKEN and REPO:
-                try:
-                    r_emergency = requests.get(f"{TRIP_URL}?final_check={random.randint(1, 1000000)}", headers=HEADERS)
-                    if r_emergency.status_code == 200:
-                        df_emergency = pd.read_csv(io.StringIO(base64.b64decode(r_emergency.json()["content"]).decode("utf-8")))
-                        if not df_emergency.empty and "Date" in df_emergency.columns:
-                            t_emergency_str = travel_date.strftime("%Y-%m-%d").strip()
-                            df_emergency["Emergency_Date_Str"] = pd.to_datetime(df_emergency["Date"], errors='coerce').dt.strftime("%Y-%m-%d").str.strip()
-                            if t_emergency_str in df_emergency["Emergency_Date_Str"].values and not st.session_state.is_admin:
-                                is_valid_submission = False
-                except Exception:
-                    pass
-
-            if not is_valid_submission:
-                st.error("🛑 Abe Loudu, data already exists on GitHub! Refreshing page...")
-                time.sleep(2)
-                st.rerun()
-            else:
-                full_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
-                half_str = ", ".join([p.strip().title() for p in half_day]) if half_day else "None"
-                
-                new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver.strip().title(), "Full Day Passengers": full_str, "Half Day Passengers": half_str}])
-                df_final = pd.concat([df_existing[df_existing["Date"].astype(str) != str(travel_date)], new_row], ignore_index=True) if not df_existing.empty else new_row
-                
-                if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
-                if "Emergency_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Emergency_Date_Str"])
-                
-                payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                
-                r_sha = requests.get(f"{TRIP_URL}?getsha={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_sha.status_code == 200: payload["sha"] = r_sha.json()["sha"]
-                
-                if requests.put(TRIP_URL, headers=HEADERS, json=payload).status_code in [200, 201]:
-                    try:
-                        w_msg = (
-                            f"🌅 *MG Carpool Hub Summary — {travel_date}*\n\n"
-                            f"👑 *Driver:* {driver.strip().title()}\n"
-                            f"🚗 *Full-Day Passengers:* {full_str}\n"
-                            f"🌤️ *Half-Day Passengers:* {half_str}\n\n"
-                            f"📊 _Ledger updated seamlessly!_ 💸"
-                        )
-                        g_instance = st.secrets['GREEN_INSTANCE_ID']
-                        g_token = st.secrets['TOKEN_PART_1'] + st.secrets['TOKEN_PART_2']
-                        w_url = f"https://api.green-api.com/waInstance{g_instance}/sendMessage/{g_token}"
-                        w_payload = {"chatId": st.secrets['WHATSAPP_GROUP_ID'], "message": w_msg}
-                        requests.post(w_url, json=w_payload, headers={"Content-Type": "application/json"}, timeout=5)
-                    except Exception:
-                        pass
-
-                    st.toast(f"🚗 Commute log saved for {travel_date}!", icon="✅")
-                    st.balloons()
-                    st.session_state.just_saved = True
-                    st.session_state.saved_message = f"🎉 Trip saved & WhatsApp Group Notified!"
-                    st.session_state.disable_lock = True
-                    st.rerun()
-
-# TAB 2: EXPENSE LOGGING
-with tab_expense:
-    st.markdown("### 💰 Add Shared Expense")
-    exp_date = st.date_input("Date of Expense", today_date_ist, key="exp_date_picker")
-    payer = st.selectbox("Who Paid the Bill?", all_commuters, key="exp_payer")
-    amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=0.0, step=50.0)
-    item_desc = st.text_input("What was this for?", placeholder="e.g., Office Lunch, Turf booking, Snacks")
-    
-    selected_consumers = []
-    cols = st.columns(len(all_commuters))
-    for idx, person in enumerate(all_commuters):
-        with cols[idx]:
-            if st.checkbox(person, value=(person == payer), key=f"share_{person}"):
-                selected_consumers.append(person.strip().title())
-
-    if st.button("💸 DISTRIBUTE & SAVE EXPENSE"):
-        if amount <= 0.0 or not item_desc.strip() or len(selected_consumers) == 0:
-            st.error("🛑 Fill all details properly!")
-        else:
-            with st.spinner("Saving expense..."):
-                split_share = round(amount / len(selected_consumers), 2)
-                new_exp_row = pd.DataFrame([{"Date": str(exp_date), "Paid By": payer.strip().title(), "Total Amount": amount, "Description": item_desc.strip(), "Shared By": ", ".join(selected_consumers), "Per Head Cost": split_share}])
-                df_exp_final = pd.concat([df_exp_existing, new_exp_row], ignore_index=True) if not df_exp_existing.empty else new_exp_row
-                payload_exp = {"message": f"Log expense: {item_desc}", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                
-                r_exp_sha = requests.get(f"{EXPENSE_URL}?getexpsha={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_exp_sha.status_code == 200: payload_exp["sha"] = r_exp_sha.json()["sha"]
-                
-                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
-                    st.toast(f"💸 Bill split recorded for {item_desc}!", icon="💰")
-                    st.success("💸 Expense Saved Successfully!")
-                    time.sleep(1.5)
-                    st.rerun()
-
-# MASTER ADMIN CONTROLS INTERFACE PANEL
-st.markdown("---")
-with st.expander("🛠️ Admin Controls (Authorized Only)"):
-    if not st.session_state.is_admin:
-        admin_pin = st.text_input("Enter Admin PIN", type="password", key="pin_input_field")
-        if admin_pin == "9999":
-            st.session_state.is_admin = True
-            st.rerun()
-    
-    if st.session_state.is_admin:
-        st.success("Admin Rights Unlocked")
-        if st.button("🔙 EXIT ADMIN MODE"):
-            st.session_state.is_admin = False
-            st.rerun()
-        
-        st.markdown("#### 🌴 Skip This Person (Active Leave)")
-        selected_holidays = []
-        h_cols = st.columns(len(all_commuters))
-        for idx, person in enumerate(all_commuters):
-            with h_cols[idx]:
-                if st.checkbox(person, value=(person in st.session_state.holiday_list), key=f"holiday_{person}"):
-                    selected_holidays.append(person)
-        if sorted(selected_holidays) != sorted(st.session_state.holiday_list):
-            st.session_state.holiday_list = selected_holidays
-            st.rerun()
-            
-        st.markdown("---")
-        if not df_existing.empty:
-            st.markdown("#### 🚗 Delete Travel Records")
-            delete_date = st.selectbox("Select Travel Date to Delete:", sorted(df_existing["Date"].unique(), reverse=True))
-            st.markdown('<div class="admin-btn">', unsafe_allow_html=True)
-            if st.button("🗑️ DELETE TRAVEL DATE"):
-                df_final = df_existing[df_existing["Date"].astype(str) != str(delete_date)]
-                
-                if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
-                if "Emergency_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Emergency_Date_Str"])
-                
-                payload = {"message": f"Admin delete trip: {delete_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                r_del_sha = requests.get(f"{TRIP_URL}?delsha={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_del_sha.status_code == 200: payload["sha"] = r_del_sha.json()["sha"]
-                
-                if requests.put(TRIP_URL, headers=HEADERS, json=payload).status_code in [200, 201]:
-                    st.error(f"🗑️ Travel record for {delete_date} wiped!")
-                    time.sleep(1.5)
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        st.markdown("---")
-        if not df_exp_existing.empty:
-            st.markdown("#### 🍔 Delete Manage Split Expenses")
-            df_exp_existing['Display_Label'] = df_exp_existing['Date'].astype(str) + " | " + df_exp_existing['Paid By'] + " | ₹" + df_exp_existing['Total Amount'].astype(str) + " (" + df_exp_existing['Description'] + ")"
-            selected_exp_label = st.selectbox("Select Bill Record to delete:", df_exp_existing['Display_Label'].unique())
-            st.markdown('<div class="admin-btn">', unsafe_allow_html=True)
-            if st.button("🗑️ DELETE EXPENSE RECORD"):
-                df_exp_final = df_exp_existing[df_exp_existing['Display_Label'] != selected_exp_label]
-                if 'Display_Label' in df_exp_final.columns:
-                    df_exp_final = df_exp_final.drop(columns=['Display_Label'])
-                payload_exp = {"message": "Admin deleted expense", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                
-                r_exp_del_sha = requests.get(f"{EXPENSE_URL}?expdelsha={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_exp_del_sha.status_code == 200: payload_exp["sha"] = r_exp_del_sha.json()["sha"]
-                
-                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
-                    st.error("🗑️ Expense record wiped out successfully!")
-                    time.sleep(1.5)
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("<div class='future-banner'><h1 style='font-size:50px;margin:0;'>🔮</h1><h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:
