@@ -195,4 +195,5 @@ with tab_trip:
             
             payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
             
-            r_sha = requests.get(
+            # FIXED: Made the requests call shorter and immune to edge-clipping string wraps
+            r_sha = requests.get(f"{
