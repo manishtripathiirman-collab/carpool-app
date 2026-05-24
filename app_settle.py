@@ -1,296 +1,93 @@
 import streamlit as st
 import pandas as pd
-import datetime
 import requests
 import base64
 import io
-import urllib.parse
-import time
+import random
 
-st.set_page_config(page_title="MG Payout Summary", page_icon="💰", layout="centered")
+st.set_page_config(page_title="MG Balance Matrix", page_icon="📊", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp {
-        background-image: linear-gradient(rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.96)), 
-                          url('https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=800&q=80');
-        background-size: cover; background-position: center; background-attachment: fixed;
+    [data-testid="stAppViewContainer"] {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.98) 100%), 
+                    url('https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80') !important;
+        background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
     }
-    .mobile-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border-radius: 16px; padding: 18px; margin-bottom: 15px; border: 1px solid rgba(99, 102, 241, 0.2); }
-    .badge-payout { background-color: rgba(34, 197, 94, 0.15); color: #4ADE80; padding: 8px 16px; border-radius: 10px; font-size: 20px; font-weight: 800; float: right; border: 1px solid rgba(34, 197, 94, 0.3); }
-    .breakdown-text { font-size: 13px; color: #94A3B8; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08); }
-    .mobile-title { font-family: sans-serif; font-size: 26px !important; font-weight: 800; color: #FFFFFF; }
-    label, p, span, h3, h4 { color: #CBD5E1 !important; }
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    .stTabs [data-baseweb="tab"] { background-color: rgba(30, 41, 59, 0.7) !important; border: 1px solid #334155 !important; border-radius: 8px 8px 0px 0px; padding: 10px 20px !important; color: #94A3B8 !important; }
-    .stTabs [aria-selected="true"] { background-color: #6366F1 !important; color: white !important; border-color: #6366F1 !important; }
-    .whatsapp-btn { display: flex; align-items: center; justify-content: center; background-color: #25D366 !important; color: white !important; font-weight: 700; font-size: 16px; text-decoration: none; padding: 14px; border-radius: 12px; width: 100%; text-align: center; margin-top: 15px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3); }
-    
-    .stat-container { background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 15px; }
-    .stat-title { font-size: 11px; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .stat-value { font-size: 15px; color: #F8FAFC; font-weight: 800; margin-top: 2px; }
-    
-    .eco-container {
-        background: rgba(16, 185, 129, 0.08);
-        border: 1px solid rgba(16, 185, 129, 0.3);
-        border-radius: 14px;
-        padding: 16px;
-        margin-top: 25px;
-        margin-bottom: 10px;
-        box-shadow: 0 0 15px rgba(16, 185, 129, 0.05);
-    }
-    .eco-headline { color: #10B981 !important; font-weight: 800; font-size: 15px; margin-bottom: 10px; letter-spacing: 0.3px; display: flex; align-items: center; gap: 6px; }
-    .eco-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .eco-item { background: rgba(15, 23, 42, 0.4); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.1); }
+    .block-container { background: transparent !important; }
+    .card { background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); text-align: center; margin-bottom: 15px; }
+    h1, h2, h3, p, span, label { color: white !important; font-weight: 700; }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<p class="mobile-title">💰 MG Settlement Desk</p>', unsafe_allow_html=True)
-
-commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
+st.title("📊 MG Carpool Settlement Engine")
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
-HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json"}
 
-if not TOKEN or not REPO:
-    st.info("💡 Awaiting cloud connection keys inside secrets panel.")
-    st.stop()
+HEADERS = {
+    "Authorization": f"token {TOKEN}",
+    "Accept": "application/vnd.github.v3+json",
+    "Cache-Control": "no-cache, no-store, must-revalidate"
+}
 
-URL_TRIPS = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
-URL_EXPENSES = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
+TRIP_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
+EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
 
-@st.cache_data(ttl=15)
-def fetch_carpool_data(url, headers):
+df_trips = pd.DataFrame()
+df_expenses = pd.DataFrame()
+
+if TOKEN and REPO:
     try:
-        r = requests.get(f"{url}?cb={int(time.time() / 15)}", headers=headers)
-        if r.status_code == 200:
-            csv_text = base64.b64decode(r.json()["content"]).decode("utf-8")
-            df = pd.read_csv(io.StringIO(csv_text))
-            if not df.empty:
-                df['Clean_Date'] = pd.to_datetime(df['Date']).dt.date
-                return df
-    except Exception:
-        pass
-    return pd.DataFrame()
+        r1 = requests.get(f"{TRIP_URL}?cb={random.randint(1,1000000)}", headers=HEADERS)
+        if r1.status_code == 200:
+            df_trips = pd.read_csv(io.StringIO(base64.b64decode(r1.json()["content"]).decode("utf-8")))
+        r2 = requests.get(f"{EXPENSE_URL}?cb={random.randint(1,1000000)}", headers=HEADERS)
+        if r2.status_code == 200:
+            df_expenses = pd.read_csv(io.StringIO(base64.b64decode(r2.json()["content"]).decode("utf-8")))
+    except Exception as e:
+        st.error(f"Read failure: {str(e)}")
 
-df_trips = fetch_carpool_data(URL_TRIPS, HEADERS)
-df_expenses = fetch_carpool_data(URL_EXPENSES, HEADERS)
+all_users = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
+balances = {u: 0.0 for u in all_users}
 
-def normalize_name(name_str):
-    val = str(name_str).strip().upper()
-    if val == "DK": return "Dk"
-    return val.title()
-
+# Commute Matrix Processor
 if not df_trips.empty:
-    st.markdown("### 🗓️ Select Settlement Week")
-    
-    all_dates = pd.to_datetime(df_trips['Date']).dt.date
-    min_date = min(all_dates)
-    max_date = max(all_dates)
-    
-    week_options = []
-    current_start = min_date - datetime.timedelta(days=min_date.weekday())
-    
-    while current_start <= max_date:
-        current_end = current_start + datetime.timedelta(days=4)
-        week_num = current_start.isocalendar()[1]
-        label = f"Week {week_num:02d} ({current_start.strftime('%d %b')} - {current_end.strftime('%d %b')} {current_start.strftime('%Y')})"
-        week_options.append((label, current_start, current_end))
-        current_start += datetime.timedelta(days=7)
+    for _, row in df_trips.iterrows():
+        driver = str(row.get('Driver', '')).strip().title()
+        if driver in balances:
+            full_p = [p.strip().title() for p in str(row.get('Full Day Passengers', '')).split(',') if p.strip().title() in balances]
+            half_p = [p.strip().title() for p in str(row.get('Half Day Passengers', '')).split(',') if p.strip().title() in balances]
+            
+            for p in full_p:
+                balances[p] -= 300.0
+                balances[driver] += 300.0
+            for p in half_p:
+                balances[p] -= 150.0
+                balances[driver] += 150.0
+
+# Bill Split Processor
+if not df_expenses.empty:
+    for _, row in df_expenses.iterrows():
+        payer = str(row.get('Paid By', '')).strip().title()
+        amt = float(row.get('Total Amount', 0.0))
+        shared_by = [p.strip().title() for p in str(row.get('Shared By', '')).split(',') if p.strip().title() in balances]
         
-    week_options.reverse()
-    selected_week_label = st.selectbox("Choose Billing Week Window:", [w[0] for w in week_options])
-    
-    chosen_week = [w for w in week_options if w[0] == selected_week_label][0]
-    start_date, end_date = chosen_week[1], chosen_week[2]
-        
-    filtered_trips = df_trips[(df_trips['Clean_Date'] >= start_date) & (df_trips['Clean_Date'] <= end_date)]
-    
-    carpool_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
-    other_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
-    driver_tally = {c: 0 for c in commuters}
-    passenger_tally = {c: 0 for c in commuters}
-    
-    co2_saved = 0.0
-    total_fuel_liters_saved = 0.0
+        if payer in balances and shared_by:
+            per_head = amt / len(shared_by)
+            balances[payer] += amt
+            for p in shared_by:
+                balances[p] -= per_head
 
-    # Process Travel Logs
-    for _, row in filtered_trips.iterrows():
-        driver_matched = normalize_name(row['Driver'])
-        if driver_matched in commuters:
-            driver_tally[driver_matched] += 1
-            if driver_matched == "Manish":
-                co2_saved += 20.6
-                total_fuel_liters_saved += 10.4
-            elif driver_matched == "Abhishek":
-                co2_saved += 22.2
-                total_fuel_liters_saved += 11.6
-            else:
-                co2_saved += 24.4
-                total_fuel_liters_saved += 13.0
-            
-        full_p = [normalize_name(p) for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
-        half_p = [normalize_name(p) for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
-        
-        for p in full_p:
-            if p in commuters and p != driver_matched: 
-                carpool_debts[p][driver_matched] += 300.0
-                passenger_tally[p] += 1
-        for p in half_p:
-            if p in commuters and p != driver_matched: 
-                carpool_debts[p][driver_matched] += 150.0
-                passenger_tally[p] += 0.5
-
-    # Process Split Expenses Logs
-    total_period_expenses = 0.0
-    filtered_expenses = pd.DataFrame()
-    expense_keywords = []
-    
-    if not df_expenses.empty:
-        filtered_expenses = df_expenses[(df_expenses['Clean_Date'] >= start_date) & (df_expenses['Clean_Date'] <= end_date)]
-        if not filtered_expenses.empty:
-            total_period_expenses = filtered_expenses['Total Amount'].sum()
-            for _, row in filtered_expenses.iterrows():
-                payer = normalize_name(row['Paid By'])
-                per_head = float(row['Per Head Cost'])
-                desc_text = str(row['Description']).lower()
-                
-                for word in ['lunch', 'food', 'turf', 'cricket', 'party', 'petrol', 'fuel', 'snack']:
-                    if word in desc_text:
-                        expense_keywords.append(word)
-                        
-                consumers = [normalize_name(p) for p in str(row['Shared By']).split(',') if p.strip()]
-                for p in consumers:
-                    if p in commuters and p != payer: other_debts[p][payer] += per_head
-
-    # Calculate Pairs
-    net_settlements = []
-    for i in range(len(commuters)):
-        for j in range(i + 1, len(commuters)):
-            p1, p2 = commuters[i], commuters[j]
-            
-            cp_p1_owes, cp_p2_owes = carpool_debts[p1][p2], carpool_debts[p2][p1]
-            misc_p1_owes, misc_p2_owes = other_debts[p1][p2], other_debts[p2][p1]
-            
-            total_p1_owes = cp_p1_owes + misc_p1_owes
-            total_p2_owes = cp_p2_owes + misc_p2_owes
-            
-            if total_p1_owes > total_p2_owes:
-                net = total_p1_owes - total_p2_owes
-                if net > 0:
-                    net_settlements.append({"From": p1, "To": p2, "Amount": net, "p1_cp_gross": cp_p1_owes, "p2_cp_gross": cp_p2_owes, "p1_misc_gross": misc_p1_owes, "p2_misc_gross": misc_p2_owes})
-            elif total_p2_owes > total_p1_owes:
-                net = total_p2_owes - total_p1_owes
-                if net > 0:
-                    net_settlements.append({"From": p2, "To": p1, "Amount": net, "p1_cp_gross": cp_p1_owes, "p2_cp_gross": cp_p2_owes, "p1_misc_gross": misc_p1_owes, "p2_misc_gross": misc_p2_owes})
-
-    net_settlements = [s for s in net_settlements if round(s["Amount"], 2) > 0]
-
-    # --- TOP ROW: SCORECARDS ---
-    st.markdown("#### ⚡ Weekly Performance Scorecard")
-    m_col1, m_col2 = st.columns(2)
-    with m_col1:
-        top_driver = max(driver_tally, key=driver_tally.get) if sum(driver_tally.values()) > 0 else "None"
-        st.markdown(f'<div class="stat-container"><div class="stat-title">👑 Weekly King of Wheel</div><div class="stat-value">{top_driver} ({driver_tally.get(top_driver, 0)} Days)</div></div>', unsafe_allow_html=True)
-    with m_col2:
-        top_passenger = max(passenger_tally, key=passenger_tally.get) if sum(passenger_tally.values()) > 0 else "None"
-        st.markdown(f'<div class="stat-container"><div class="stat-title">🎒 Weekly Top Passenger</div><div class="stat-value">{top_passenger} ({int(passenger_tally.get(top_passenger, 0))} Rides)</div></div>', unsafe_allow_html=True)
-
-    tab_summary, tab_ledger = st.tabs(["💵 Payout Summary", "📋 Split Expense History"])
-
-    with tab_summary:
-        st.markdown("### 💎 Consolidated Net Pairwise Settlements")
-        if net_settlements:
-            for s in net_settlements:
-                f_name, t_name = s["From"], s["To"]
-                lines = []
-                
-                if s["p1_cp_gross"] > s["p2_cp_gross"]:
-                    lines.append(f"• 🚗 **Carpool Dues:** {f_name} owes {t_name} **₹{s['p1_cp_gross'] - s['p2_cp_gross']:.0f}**")
-                elif s["p2_cp_gross"] > s["p1_cp_gross"]:
-                    lines.append(f"• 🚗 **Carpool Dues:** {t_name} owes {f_name} **₹{s['p2_cp_gross'] - s['p1_cp_gross']:.0f}**")
-                
-                if s["p1_misc_gross"] > s["p2_misc_gross"]:
-                    lines.append(f"• 🍔 **Other Spend:** {f_name} owes {t_name} **₹{s['p1_misc_gross'] - s['p2_misc_gross']:.0f}**")
-                elif s["p2_misc_gross"] > s["p1_misc_gross"]:
-                    lines.append(f"• 🍔 **Other Spend:** {t_name} owes {f_name} **₹{s['p2_misc_gross'] - s['p1_misc_gross']:.0f}**")
-
-                breakdown_html = "<br>".join(lines) if lines else "• No segment debts."
-
-                st.markdown(f"""
-                <div class="mobile-card">
-                    <div class="badge-payout">₹{s['Amount']:.2f}</div>
-                    <div style="font-weight:700; font-size:16px; color:#F8FAFC;">👉 {f_name}</div>
-                    <div style="font-size:13px; color:#94A3B8; margin-top:2px;">Owes net single payout directly to <b>{t_name}</b></div>
-                    <div class="breakdown-text">
-                        <b>📝 Itemized Calculations Breakup:</b><br>
-                        {breakdown_html}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # --- FIXED: WHATSAPP FORMAT MECHANICS CLEANED INTO ULTRA-SAFE STRINGS ---
-            h_emoji, h_title = "🚗", "Carpool Net Payout Summary"
-            if "lunch" in expense_keywords or "food" in expense_keywords:
-                h_emoji, h_title = "🍔", "MG Food & Ride Settlement Desk"
-            elif "turf" in expense_keywords or "cricket" in expense_keywords:
-                h_emoji, h_title = "🏏", "MG Cricket Turf Match Settlements"
-            elif "party" in expense_keywords:
-                h_emoji, h_title = "🍻", "MG Party Weekend Ledger"
-            elif "fuel" in expense_keywords or "petrol" in expense_keywords:
-                h_emoji, h_title = "⛽", "MG Fuel Refill Matrix"
-            
-            equivalent_tree_days = co2_saved / 0.06 if co2_saved > 0 else 0
-            
-            whatsapp_text = f"{h_emoji} *{h_title} ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
-            whatsapp_text += f"🌱 *Eco Tally:* {co2_saved:.1f} kg CO₂ saved ({int(equivalent_tree_days):,} Tree-Days offset!)\n"
-            whatsapp_text += "--------------------------------------\n"
-            for s in net_settlements:
-                f_n, t_n = s["From"], s["To"]
-                whatsapp_text += f"👉 *{f_n}* pays *{t_n}*:  *₹{s['Amount']:.2f}*\n"
-                if s["p1_cp_gross"] != s["p2_cp_gross"]:
-                    whatsapp_text += f"   _↳ Carpool: {f_n if (s['p1_cp_gross'] - s['p2_cp_gross']) > 0 else t_n} owes ₹{abs(s['p1_cp_gross'] - s['p2_cp_gross']):.0f}_\n"
-                if s["p1_misc_gross"] != s["p2_misc_gross"]:
-                    whatsapp_text += f"   _↳ Other Bills: {f_n if (s['p1_misc_gross'] - s['p2_misc_gross']) > 0 else t_n} owes ₹{abs(s['p1_misc_gross'] - s['p2_misc_gross']):.0f}_\n"
-                whatsapp_text += "\n"
-            whatsapp_text += "--------------------------------------"
-            
-            st.markdown(f'<a href="https://wa.me/?text={urllib.parse.quote(whatsapp_text)}" target="_blank" class="whatsapp-btn">💬 SHARE DIRECT TO WHATSAPP GROUP</a>', unsafe_allow_html=True)
-            
-            st.markdown(f"""
-                <div class="eco-container">
-                    <div class="eco-headline">🌱 MG Custom Garage Eco Impact Flex (130 KM Round-Trip)</div>
-                    <div class="eco-grid">
-                        <div class="eco-item">
-                            <div style="font-size: 11px; color: #34D399; font-weight:600;">🛑 AVOIDED EMISSIONS</div>
-                            <div style="font-size: 20px; font-weight: 800; color: #F8FAFC; margin-top:2px;">{co2_saved:.1f} kg <span style="font-size:12px; color:#A7F3D0; font-weight:500;">CO₂</span></div>
-                        </div>
-                        <div class="eco-item">
-                            <div style="font-size: 11px; color: #34D399; font-weight:600;">🌲 TREE-DAYS OFFSET</div>
-                            <div style="font-size: 20px; font-weight: 800; color: #F8FAFC; margin-top:2px;">{int(equivalent_tree_days):,} <span style="font-size:12px; color:#A7F3D0; font-weight:500;">Days</span></div>
-                        </div>
-                    </div>
-                    <div style="font-size: 12px; color: #A7F3D0; margin-top: 10px; text-align: center; font-style: italic; font-weight: 500;">
-                        ⛽ Commuting 130 km round-trip together saved roughly <b>{total_fuel_liters_saved:.1f} Total Liters</b> of fuel vs driving separately!
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.success("🎉 All accounts match up perfectly across this selected weekly window!")
-
-    with tab_ledger:
-        st.markdown(f"### 📋 Weekly Bill Ledger Breakdown (Selected Week: ₹{total_period_expenses:,.2f})")
-        if not filtered_expenses.empty:
-            render_df = filtered_expenses.drop(columns=['Clean_Date']) if 'Clean_Date' in filtered_expenses.columns else filtered_expenses
-            st.dataframe(render_df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
-        else: st.info("No shared bills found logged inside this chosen week window.")
-            
-        st.markdown("---")
-        with st.expander("📱 View Raw Weekly Travel Calendar Logs"):
-            render_trips = filtered_trips.drop(columns=['Clean_Date']) if 'Clean_Date' in filtered_trips.columns else filtered_trips
-            st.dataframe(render_trips.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
-else:
-    st.info("Log database file is empty.")
+st.markdown("### 💸 Current Standing Matrix")
+cols = st.columns(len(all_users))
+for idx, user in enumerate(all_users):
+    with cols[idx]:
+        bal = round(balances[user], 2)
+        color = "#4ADE80" if bal >= 0 else "#F87171"
+        st.markdown(f"""
+            <div class="card">
+                <h3>{user}</h3>
+                <h2 style='color:{color} !important;'>₹{bal}</h2>
+            </div>
+        """, unsafe_allow_html=True)
