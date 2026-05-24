@@ -9,20 +9,22 @@ import random
 
 st.set_page_config(page_title="MG Logger", page_icon="🚗", layout="centered")
 
-# Visual Engine: Pure Dark Layout with Fixed Header Margin Spacing
+# Visual Engine: Pure Dark Layout with Universal Mobile Scrolling Viewports
 st.markdown(
     """
     <style>
     [data-testid="stAppViewContainer"] {
         background-color: #0F172A !important;
+        overflow-y: auto !important; /* Permits fluid native scrolling */
     }
     .block-container {
         background: rgba(30, 41, 59, 0.7) !important;
-        padding: 25px !important; 
+        padding: 20px 16px 30px 16px !important; /* Optimized padding footprints */
         border-radius: 20px !important; 
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
         box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.5) !important; 
-        margin-top: 40px !important;
+        margin-top: 35px !important;
+        margin-bottom: 30px !important;
     }
     .mobile-title { font-family: sans-serif; font-size: 24px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 20px; }
     label, p, span, h2, h3, h4 { color: #F1F5F9 !important; font-weight: 700 !important; }
@@ -195,7 +197,6 @@ with tab_trip:
             
             payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
             
-            # FIXED: Rewritten into clean variables to prevent string literal separation loops
             sha_query_url = f"{TRIP_URL}?cb={random.randint(1, 1000000)}"
             r_sha = requests.get(url=sha_query_url, headers=HEADERS)
             if r_sha.status_code == 200: payload["sha"] = r_sha.json()["sha"]
