@@ -115,7 +115,7 @@ with tab_trip:
         time.sleep(1.5)
         st.rerun()
 
-    # THE CHOSEN ONE: THE UNREMOVABLE "LOUDU" LOCK BANNER 
+    # LOCK SCREEN DEPLOYMENT
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
         st.markdown("<div class='lock-banner'><h1 style='font-size:50px;'>🛑</h1><h2 style='color:#EF4444;font-weight:900;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='color:#F1F5F9;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
 
@@ -157,18 +157,8 @@ with tab_trip:
         st.session_state.temp_half = half_day
 
         if st.button("💾 SAVE TRIP TO LEDGER"):
-            is_valid_submission = True
+            is_valid = True
             if TOKEN and REPO:
                 try:
                     r_emergency = requests.get(f"{TRIP_URL}?final_check={random.randint(1, 1000000)}", headers=HEADERS)
-                    if r_emergency.status_code == 200:
-                        df_emergency = pd.read_csv(io.StringIO(base64.b64decode(r_emergency.json()["content"]).decode("utf-8")))
-                        if not df_emergency.empty and "Date" in df_emergency.columns:
-                            t_emergency_str = travel_date.strftime("%Y-%m-%d").strip()
-                            df_emergency["Emergency_Date_Str"] = pd.to_datetime(df_emergency["Date"], errors='coerce').dt.strftime("%Y-%m-%d").str.strip()
-                            if t_emergency_str in df_emergency["Emergency_Date_Str"].values and not st.session_state.is_admin:
-                                is_valid_submission = False
-                except Exception:
-                    pass
-
-            if not is_valid_
+                    if r_emergency.status_code == 20
