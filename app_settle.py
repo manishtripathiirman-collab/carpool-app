@@ -168,7 +168,7 @@ if not df_trips.empty:
                 for p in consumers:
                     if p in commuters and p != payer: other_debts[p][payer] += per_head
 
-    # Calculate Pairs
+    # --- FIXED: Closed out the array cleanly to clear the syntax error ---
     net_settlements = []
     for i in range(len(commuters)):
         for j in range(i + 1, len(commuters)):
@@ -197,4 +197,30 @@ if not df_trips.empty:
                         "p1_misc_gross": misc_p1_owes, "p2_misc_gross": misc_p2_owes
                     })
 
-    net_settlements =
+    net_settlements = [s for s in net_settlements if round(s["Amount"], 2) > 0]
+
+    # --- TOP ROW: SCORECARDS ---
+    st.markdown("#### ⚡ Weekly Performance Scorecard")
+    m_col1, m_col2 = st.columns(2)
+    with m_col1:
+        top_driver = max(driver_tally, key=driver_tally.get) if sum(driver_tally.values()) > 0 else "None"
+        st.markdown(f'<div class="stat-container"><div class="stat-title">👑 Weekly King of Wheel</div><div class="stat-value">{top_driver} ({driver_tally.get(top_driver, 0)} Days)</div></div>', unsafe_allow_html=True)
+    with m_col2:
+        top_passenger = max(passenger_tally, key=passenger_tally.get) if sum(passenger_tally.values()) > 0 else "None"
+        st.markdown(f'<div class="stat-container"><div class="stat-title">🎒 Weekly Top Passenger</div><div class="stat-value">{top_passenger} ({int(passenger_tally.get(top_passenger, 0))} Rides)</div></div>', unsafe_allow_html=True)
+
+    tab_summary, tab_ledger = st.tabs(["💵 Payout Summary", "📋 Split Expense History"])
+
+    with tab_summary:
+        st.markdown("### 💎 Consolidated Net Pairwise Settlements")
+        if net_settlements:
+            for s in net_settlements:
+                f_name, t_name = s["From"], s["To"]
+                lines = []
+                
+                if s["p1_cp_gross"] > s["p2_cp_gross"]:
+                    lines.append(f"• 🚗 **Carpool Dues:** {f_name} owes {t_name} **₹{s['p1_cp_gross'] - s['p2_cp_gross']:.0f}**")
+                elif s["p2_cp_gross"] > s["p1_cp_gross"]:
+                    lines.append(f"• 🚗 **Carpool Dues:** {t_name} owes {f_name} **₹{s['p2_cp_gross'] - s['p1_cp_gross']:.0f}**")
+                
+                if
