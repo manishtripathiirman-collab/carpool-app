@@ -161,4 +161,99 @@ if not df_trips.empty:
         for p in half_list:
             if p in passenger_counts: passenger_counts[p] += 1
             if p in balances: balances[p] -= 150.0; balances[driver] += 150.0
-            if p in eco_saved_footprint: total_carbon_offset_kg += (eco_saved_footprint
+            if p in eco_saved_footprint: total_carbon_offset_kg += (eco_saved_footprint[p] * 0.5)
+
+if not df_expenses.empty:
+    for _, row in df_expenses.iterrows():
+        payer = str(row.get("Paid By", "")).strip().title()
+        try: total_amount = float(row.get("Total Amount", row.get("Total amount", 0.0)))
+        except: total_amount = 0.0
+        consumer_list = [p.strip().title() for p in str(row.get("Shared By", "")).split(",") if p.strip()]
+        
+        if total_amount > 0 and len(consumer_list) > 0:
+            per_person_cost = round(total_amount / len(consumer_list), 2)
+            for p in consumer_list:
+                if p in balances: balances[p] -= per_person_cost
+            if payer in balances: balances[payer] += total_amount
+
+# Performance Scorecards Row
+st.markdown('<p class="section-title">⚡ Weekly Stats</p>', unsafe_allow_html=True)
+top_driver = max(driver_counts, key=driver_counts.get) if total_trips_logged > 0 else "None"
+top_passenger = max(passenger_counts, key=passenger_counts.get) if total_trips_logged > 0 else "None"
+
+st.markdown(
+    f"""
+    <div class="scorecard-row">
+        <div class="scorecard-box">
+            <div class="scorecard-label">👑 King of Wheel</div>
+            <div class="scorecard-val">{top_driver} ({driver_counts.get(top_driver, 0)} Days)</div>
+        </div>
+        <div class="scorecard-box">
+            <div class="scorecard-label">🎒 Top Passenger</div>
+            <div class="scorecard-val">{top_passenger} ({passenger_counts.get(top_passenger, 0)} Rides)</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+tab_payout, tab_raw = st.tabs(["💵 Payouts", "📋 History"])
+
+with tab_payout:
+    st.markdown('<p class="section-title">💎 Net Pairwise Settlements</p>', unsafe_allow_html=True)
+    
+    debtors = []
+    creditors = []
+    for person, bal in balances.items():
+        if bal < -0.01: debtors.append([person, abs(bal)])
+        elif bal > 0.01: creditors.append([person, bal])
+            
+    pairwise_txs = []
+    d_idx, c_idx = 0, 0
+    while d_idx < len(debtors) and c_idx < len(creditors):
+        d_name, d_amt = debtors[d_idx]
+        c_name, c_amt = creditors[c_idx]
+        settled_amt = min(d_amt, c_amt)
+        pairwise_txs.append((d_name, c_name, round(settled_amt, 2)))
+        debtors[d_idx][1] -= settled_amt
+        creditors[c_idx][1] -= settled_amt
+        if debtors[d_idx][1] < 0.01: d_idx += 1
+        if creditors[c_idx][1] < 0.01: c_idx += 1
+
+    # Text Generator
+    whatsapp_lines = ["*🚗 Carpool Settlement Summary*", "-------------------------------------"]
+    if not pairwise_txs:
+        st.info("Balances are fully zeroed out!")
+    else:
+        for deb, cred, amt in pairwise_txs:
+            st.markdown(f'<div class="pairwise-card"><div><div class="payer-info">👉 {deb}</div><div class="payer-sub">Pays directly to <b>{cred}</b></div></div><div class="payout-pill">₹{amt:,.0f}</div></div>', unsafe_allow_html=True)
+            whatsapp_lines.append(f"👉 *{deb}* pays *{cred}*:  *₹{amt:.0f}*")
+            
+    whatsapp_lines.append("-------------------------------------")
+    whatsapp_lines.append("💡 _Calculated via direct netting loops._")
+    whatsapp_text_raw = "\n".join(whatsapp_lines)
+
+    st.markdown('<p class="section-title">🟢 Output Code</p>', unsafe_allow_html=True)
+    st.markdown(f'<div class="whatsapp-box">{whatsapp_text_raw.replace("\n", "<br>")}</div>', unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Direct Share Link
+    encoded_message = urllib.parse.quote(whatsapp_text_raw)
+    whatsapp_link_html = f"""
+    <a href="https://api.whatsapp.com/send?text={encoded_message}" target="_blank" class="whatsapp-btn">
+        💬 SHARE DIRECT TO WHATSAPP
+    </a>
+    """
+    st.markdown(whatsapp_link_html, unsafe_allow_html=True)
+
+    # Lean Eco Impact Panel
+    tree_days_saved = int(total_carbon_offset_kg / 0.06) 
+    st.markdown(
+        f"""
+        <div class="eco-box">
+            <div class="eco-title">🌱 Eco Impact Profile</div>
+            <div class="scorecard-row" style="margin-top: 6px;">
+                <div class="scorecard-box" style="background:rgba(0,0,0,0.25); border:none;">
+                    <div class="scorecard-label" style="color:#A7F3D0;">Avoided Footprint</div>
+                    <div
