@@ -250,9 +250,9 @@ with tab_payout:
     """
     st.markdown(whatsapp_link_html, unsafe_allow_html=True)
 
-    # FIXED: Replaced unsafe HTML string variables with rock-solid native containers
+    # FIXED INDENTATION: Aligned the text elements cleanly to 4 spaces inside tab_payout
     st.markdown('<p class="section-title">🌱 Eco Impact Profile</p>', unsafe_allow_html=True)
-    with st.container():
-        tree_days_saved = int(total_carbon_offset_kg / 0.06)
-        eco_cols = st.columns(2)
-        with eco_cols[0]:
+    tree_days_saved = int(total_carbon_offset_kg / 0.06)
+    eco_cols = st.columns(2)
+    with eco_cols[0]:
+        st.metric("Avoided Footprint", f"{total_carbon_offset_kg:.1f} kg CO₂
