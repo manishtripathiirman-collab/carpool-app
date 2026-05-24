@@ -22,7 +22,7 @@ st.markdown(
         border-radius: 20px !important; 
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
         box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.5) !important; 
-        margin-top: 40px !important; /* Airbag padding to avoid mobile notch/bezel cutoff */
+        margin-top: 40px !important;
     }
     .mobile-title { font-family: sans-serif; font-size: 24px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 20px; }
     label, p, span, h2, h3, h4 { color: #F1F5F9 !important; font-weight: 700 !important; }
@@ -54,99 +54,5 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Clean minimalist layout header - Small regular dash with lowercase mantri signature
-st.markdown('<p class="mobile-title">🌅 MG Carpool Hub - <span style="font-size: 10px; font-weight: 400; color: #64748B; text-transform: lowercase; vertical-align: middle;">mantri</span></p>', unsafe_allow_html=True)
-
-all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
-
-# Time calculations
-utc_now = datetime.datetime.utcnow()
-ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
-today_date_ist = ist_now.date()
-
-# State Management Engine
-if "holiday_list" not in st.session_state: st.session_state.holiday_list = []
-if "just_saved" not in st.session_state: st.session_state.just_saved = False
-if "saved_message" not in st.session_state: st.session_state.saved_message = ""
-if "last_processed_date" not in st.session_state: st.session_state.last_processed_date = None
-if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
-if "is_admin" not in st.session_state: st.session_state.is_admin = False
-if "reset_trigger" not in st.session_state: st.session_state["reset_trigger"] = 0
-
-TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
-REPO = st.secrets.get("GITHUB_REPO", "").strip()
-
-HEADERS = {
-    "Authorization": f"token {TOKEN}",
-    "Accept": "application/vnd.github.v3+json",
-    "Cache-Control": "no-cache, no-store, must-revalidate",
-    "Pragma": "no-cache"
-}
-
-TRIP_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
-EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
-
-df_existing = pd.DataFrame()
-df_exp_existing = pd.DataFrame()
-
-if TOKEN and REPO:
-    try:
-        r = requests.get(f"{TRIP_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
-        if r.status_code == 200:
-            df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
-        
-        r_e = requests.get(f"{EXPENSE_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
-        if r_e.status_code == 200:
-            df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
-    except Exception:
-        pass
-
-tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
-
-with tab_trip:
-    travel_date = st.date_input(
-        "Date of Travel", 
-        today_date_ist, 
-        key=f"trip_date_picker_bound_{st.session_state['reset_trigger']}"
-    )
-
-    if st.session_state.last_processed_date != str(travel_date):
-        st.session_state.disable_lock = False
-        st.session_state.last_processed_date = str(travel_date)
-
-    is_future_date = travel_date > today_date_ist
-    
-    date_exists = False
-    if not df_existing.empty and "Date" in df_existing.columns:
-        target_dash = travel_date.strftime("%Y-%m-%d").strip()
-        target_slash = travel_date.strftime("%Y/%m/%d").strip()
-        df_existing["Cleaned_Date_Str"] = df_existing["Date"].astype(str).str.strip()
-        date_exists = (target_dash in df_existing["Cleaned_Date_Str"].values) or (target_slash in df_existing["Cleaned_Date_Str"].values)
-
-    if is_future_date:
-        st.markdown(
-            """
-            <div class='future-banner'>
-                <h1 style='font-size:50px;margin:0;'>🔮</h1>
-                <h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;'>Ye kam bhi Loudu ka hi hai</h2>
-                <h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>You cannot log entries for future dates.</h4>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-        if st.button("🔙 GO BACK / CHANGE DATE", key="back_future_btn"):
-            st.session_state["reset_trigger"] += 1
-            st.rerun()
-
-    elif st.session_state.just_saved:
-        st.success(st.session_state.saved_message)
-        st.session_state.just_saved = False
-        time.sleep(1.5)
-        st.rerun()
-
-    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
-        st.markdown(
-            """
-            <div class='lock-banner'>
-                <h1 style='font-size:50px;margin:0;'>🛑</h1>
-                <h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2>
+# Regular hyphen-dash with ultra-small lowercase mantri signature
+st.markdown('<p class="mobile-title">🌅 MG Carpool Hub - <span style="font-size: 10px; font-weight: 400; color: #64748B; text-transform: lowercase; vertical-align: middle;">mantri</span></p
