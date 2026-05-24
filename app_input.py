@@ -69,16 +69,9 @@ utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
 
-# TOKEN SHIELD ENGINE: Split strings completely blindside the GitHub security scan blocker
+# BULLETPROOF RECONNECT ENGINE: Pulls purely from safe Streamlit environment parameters
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
-if not TOKEN or len(TOKEN) < 10:
-    t_part1 = "ghp_6Lr7G0jgSTe9Z"
-    t_part2 = "leCdKLv7yYZaInyzM21jpk6"
-    TOKEN = t_part1 + t_part2
-
 REPO = st.secrets.get("GITHUB_REPO", "")
-if not REPO or len(REPO) < 5:
-    REPO = "manishtripathirirman-collab/carpool-app"
 
 HEADERS = {
     "Authorization": f"token {TOKEN}",
@@ -93,16 +86,18 @@ EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.cs
 df_existing = pd.DataFrame()
 df_exp_existing = pd.DataFrame()
 
-try:
-    r = requests.get(f"{TRIP_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
-    if r.status_code == 200:
-        df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
-    
-    r_e = requests.get(f"{EXPENSE_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
-    if r_e.status_code == 200:
-        df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
-except Exception as e:
-    pass
+# Active connection validation framework
+if TOKEN and REPO:
+    try:
+        r = requests.get(f"{TRIP_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
+        if r.status_code == 200:
+            df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
+        
+        r_e = requests.get(f"{EXPENSE_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
+        if r_e.status_code == 200:
+            df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
+    except Exception as e:
+        pass
 
 tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
 
@@ -115,6 +110,7 @@ with tab_trip:
 
     is_future_date = travel_date > today_date_ist
     
+    # Advanced Multi-Format String Matching System
     date_exists = False
     if not df_existing.empty and "Date" in df_existing.columns:
         target_dash = travel_date.strftime("%Y-%m-%d").strip()
@@ -131,7 +127,7 @@ with tab_trip:
         time.sleep(1.5)
         st.rerun()
 
-    # THE CHOSEN ONE: THE LOCKOUT BANNER TRIGGER
+    # THE CHOSEN ONE: THE DUPLICATE LOCKOUT TRIGGER
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
         st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
 
@@ -174,18 +170,19 @@ with tab_trip:
 
         if st.button("💾 SAVE TRIP TO LEDGER"):
             is_valid_submission = True
-            try:
-                r_emergency = requests.get(f"{TRIP_URL}?final_check={random.randint(1, 1000000)}", headers=HEADERS)
-                if r_emergency.status_code == 200:
-                    df_emergency = pd.read_csv(io.StringIO(base64.b64decode(r_emergency.json()["content"]).decode("utf-8")))
-                    if not df_emergency.empty and "Date" in df_emergency.columns:
-                        df_emergency["Emergency_Date_Str"] = df_emergency["Date"].astype(str).str.strip()
-                        t_dash = travel_date.strftime("%Y-%m-%d").strip()
-                        t_slash = travel_date.strftime("%Y/%m/%d").strip()
-                        if (t_dash in df_emergency["Emergency_Date_Str"].values or t_slash in df_emergency["Emergency_Date_Str"].values) and not st.session_state.is_admin:
-                            is_valid_submission = False
-            except Exception:
-                pass
+            if TOKEN and REPO:
+                try:
+                    r_emergency = requests.get(f"{TRIP_URL}?final_check={random.randint(1, 1000000)}", headers=HEADERS)
+                    if r_emergency.status_code == 200:
+                        df_emergency = pd.read_csv(io.StringIO(base64.b64decode(r_emergency.json()["content"]).decode("utf-8")))
+                        if not df_emergency.empty and "Date" in df_emergency.columns:
+                            df_emergency["Emergency_Date_Str"] = df_emergency["Date"].astype(str).str.strip()
+                            t_dash = travel_date.strftime("%Y-%m-%d").strip()
+                            t_slash = travel_date.strftime("%Y/%m/%d").strip()
+                            if (t_dash in df_emergency["Emergency_Date_Str"].values or t_slash in df_emergency["Emergency_Date_Str"].values) and not st.session_state.is_admin:
+                                is_valid_submission = False
+                except Exception:
+                    pass
 
             if not is_valid_submission:
                 st.error("🛑 Log alert! Entry exists. Refreshing workspace...")
@@ -216,10 +213,10 @@ with tab_trip:
                             f"🌤️ *Half-Day Passengers:* {half_str}\n\n"
                             f"📊 _Ledger updated seamlessly!_ 💸"
                         )
-                        g_instance = st.secrets.get("GREEN_INSTANCE_ID", "7107629959")
-                        g_token = st.secrets.get("TOKEN_PART_1", "b4d8dbc05e844dbfa442f027bb047d5e") + st.secrets.get("TOKEN_PART_2", "fef218319954ae4bc")
+                        g_instance = st.secrets.get("GREEN_INSTANCE_ID", "")
+                        g_token = st.secrets.get("TOKEN_PART_1", "") + st.secrets.get("TOKEN_PART_2", "")
                         w_url = f"https://api.green-api.com/waInstance{g_instance}/sendMessage/{g_token}"
-                        w_payload = {"chatId": st.secrets.get("WHATSAPP_GROUP_ID", "120363025463728192@g.us"), "message": w_msg}
+                        w_payload = {"chatId": st.secrets.get("WHATSAPP_GROUP_ID", ""), "message": w_msg}
                         requests.post(w_url, json=w_payload, headers={"Content-Type": "application/json"}, timeout=5)
                     except Exception:
                         pass
@@ -319,4 +316,16 @@ with st.expander("🛠️ Admin Controls (Authorized Only)"):
             selected_exp_label = st.selectbox("Select Bill Record to delete:", df_exp_existing['Display_Label'].unique())
             st.markdown('<div class="admin-btn">', unsafe_allow_html=True)
             if st.button("🗑️ DELETE EXPENSE RECORD"):
-                df_exp_final = df_exp_existing
+                df_exp_final = df_exp_existing[df_exp_existing['Display_Label'] != selected_exp_label]
+                if 'Display_Label' in df_exp_final.columns:
+                    df_exp_final = df_exp_final.drop(columns=['Display_Label'])
+                payload_exp = {"message": "Admin deleted expense", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
+                
+                r_exp_del_sha = requests.get(f"{EXPENSE_URL}?expdelsha={random.randint(1, 1000000)}", headers=HEADERS)
+                if r_exp_del_sha.status_code == 200: payload_exp["sha"] = r_exp_del_sha.json()["sha"]
+                
+                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
+                    st.error("🗑️ Expense record wiped out successfully!")
+                    time.sleep(1.5)
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
