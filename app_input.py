@@ -55,4 +55,146 @@ st.markdown(
 )
 
 # Regular hyphen-dash with ultra-small lowercase mantri signature
-st.markdown('<p class="mobile-title">🌅 MG Carpool Hub - <span style="font-size: 10px; font-weight: 400; color: #64748B; text-transform: lowercase; vertical-align: middle;">mantri</span></p
+st.markdown('<p class="mobile-title">🌅 MG Carpool Hub - <span style="font-size: 10px; font-weight: 400; color: #64748B; text-transform: lowercase; vertical-align: middle;">mantri</span></p>', unsafe_allow_html=True)
+
+all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
+
+# Time calculations
+utc_now = datetime.datetime.utcnow()
+ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
+today_date_ist = ist_now.date()
+
+# State Management Engine
+if "holiday_list" not in st.session_state: st.session_state.holiday_list = []
+if "just_saved" not in st.session_state: st.session_state.just_saved = False
+if "saved_message" not in st.session_state: st.session_state.saved_message = ""
+if "last_processed_date" not in st.session_state: st.session_state.last_processed_date = None
+if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
+if "is_admin" not in st.session_state: st.session_state.is_admin = False
+if "reset_trigger" not in st.session_state: st.session_state["reset_trigger"] = 0
+
+TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
+REPO = st.secrets.get("GITHUB_REPO", "").strip()
+
+HEADERS = {
+    "Authorization": f"token {TOKEN}",
+    "Accept": "application/vnd.github.v3+json",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache"
+}
+
+TRIP_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
+EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
+
+df_existing = pd.DataFrame()
+df_exp_existing = pd.DataFrame()
+
+if TOKEN and REPO:
+    try:
+        r = requests.get(f"{TRIP_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
+        if r.status_code == 200:
+            df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
+        
+        r_e = requests.get(f"{EXPENSE_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
+        if r_e.status_code == 200:
+            df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
+    except Exception:
+        pass
+
+tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
+
+with tab_trip:
+    travel_date = st.date_input(
+        "Date of Travel", 
+        today_date_ist, 
+        key=f"trip_date_picker_bound_{st.session_state['reset_trigger']}"
+    )
+
+    if st.session_state.last_processed_date != str(travel_date):
+        st.session_state.disable_lock = False
+        st.session_state.last_processed_date = str(travel_date)
+
+    is_future_date = travel_date > today_date_ist
+    
+    date_exists = False
+    if not df_existing.empty and "Date" in df_existing.columns:
+        target_dash = travel_date.strftime("%Y-%m-%d").strip()
+        target_slash = travel_date.strftime("%Y/%m/%d").strip()
+        df_existing["Cleaned_Date_Str"] = df_existing["Date"].astype(str).str.strip()
+        date_exists = (target_dash in df_existing["Cleaned_Date_Str"].values) or (target_slash in df_existing["Cleaned_Date_Str"].values)
+
+    if is_future_date:
+        st.markdown(
+            """
+            <div class='future-banner'>
+                <h1 style='font-size:50px;margin:0;'>🔮</h1>
+                <h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;'>Ye kam bhi Loudu ka hi hai</h2>
+                <h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>You cannot log entries for future dates.</h4>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+        if st.button("🔙 GO BACK / CHANGE DATE", key="back_future_btn"):
+            st.session_state["reset_trigger"] += 1
+            st.rerun()
+
+    elif st.session_state.just_saved:
+        st.success(st.session_state.saved_message)
+        st.session_state.just_saved = False
+        time.sleep(1.5)
+        st.rerun()
+
+    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
+        st.markdown(
+            """
+            <div class='lock-banner'>
+                <h1 style='font-size:50px;margin:0;'>🛑</h1>
+                <h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2>
+                <h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+        if st.button("🔙 GO BACK / CHANGE DATE", key="back_lock_btn"):
+            st.session_state["reset_trigger"] += 1
+            st.rerun()
+
+    else:
+        commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
+        if not commuters: commuters = all_commuters
+
+        st.markdown("#### ⚡ Real-Time Status Preview")
+        preview_cols = st.columns(len(all_commuters))
+        
+        t_driver = st.session_state.get("temp_driver", commuters[0])
+        t_full = st.session_state.get("temp_full", [])
+        t_half = st.session_state.get("temp_half", [])
+
+        for idx, person in enumerate(all_commuters):
+            with preview_cols[idx]:
+                st.markdown(f"<div style='text-align: center; font-weight: 800; color: #FFFFFF;'>{person}</div>", unsafe_allow_html=True)
+                if person in st.session_state.holiday_list:
+                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-holiday">🌴 Leave</span></div>', unsafe_allow_html=True)
+                elif person == t_driver:
+                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-driver">👑 Wheel</span></div>', unsafe_allow_html=True)
+                elif person in t_full:
+                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-full">🚗 Full</span></div>', unsafe_allow_html=True)
+                elif person in t_half:
+                    st.markdown('<div style="text-align:center;"><span class="neon-badge badge-half">🌤️ Half</span></div>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<div style="text-align:center; color:rgba(255,255,255,0.4); font-size:11px;">---</div>', unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
+        st.session_state.temp_driver = driver
+        
+        passenger_options = [c for c in commuters if c != driver]
+        full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
+        st.session_state.temp_full = full_day
+        
+        half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
+        st.session_state.temp_half = half_day
+
+        if st.button("💾 SAVE TRIP TO LEDGER"):
+            full_str =
