@@ -96,6 +96,7 @@ if not df_trips.empty:
     driver_tally = {c: 0 for c in commuters}
     passenger_tally = {c: 0 for c in commuters}
     
+    # Garage Metrics scaled precisely to a 130 KM round-trip
     co2_saved = 0.0
     total_fuel_liters_saved = 0.0
 
@@ -105,16 +106,16 @@ if not df_trips.empty:
         if driver_matched in commuters:
             driver_tally[driver_matched] += 1
             
-            # 65 KM Garage Profiling
+            # --- 130 KM HIGHWAY ROUND-TRIP CALCULATIONS ENGINE ---
             if driver_matched == "Manish":
-                co2_saved += 10.3  
-                total_fuel_liters_saved += 5.2
+                co2_saved += 20.6  # Saved kg per 130km day
+                total_fuel_liters_saved += 10.4
             elif driver_matched == "Abhishek":
-                co2_saved += 11.1  
-                total_fuel_liters_saved += 5.8
+                co2_saved += 22.2  # Saved kg per 130km day
+                total_fuel_liters_saved += 11.6
             else:
-                co2_saved += 12.2  
-                total_fuel_liters_saved += 6.5
+                co2_saved += 24.4  # Saved kg per 130km day (CNG Cars)
+                total_fuel_liters_saved += 13.0
             
         full_p = [normalize_name(p) for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
         half_p = [normalize_name(p) for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
@@ -212,7 +213,6 @@ if not df_trips.empty:
 
                 breakdown_html = "<br>".join(lines) if lines else "• No segment debts."
 
-                # FIXED: The triple-quoted f-string block is completely sealed off properly here
                 st.markdown(f"""
                 <div class="mobile-card">
                     <div class="badge-payout">₹{s['Amount']:.2f}</div>
@@ -252,10 +252,10 @@ if not df_trips.empty:
             
             st.markdown(f'<a href="https://wa.me/?text={urllib.parse.quote(whatsapp_text)}" target="_blank" class="whatsapp-btn">💬 SHARE DIRECT TO WHATSAPP GROUP</a>', unsafe_allow_html=True)
             
-            # --- ENVIRONMENTAL FLEX BLOCK PANEL ---
+            # --- ENVIRONMENTAL FLEX BLOCK PANEL (SCALED TO 130 KM ROUND TRIP) ---
             st.markdown(f"""
                 <div class="eco-container">
-                    <div class="eco-headline">🌱 MG Custom Garage Eco Impact Flex (65 KM Route)</div>
+                    <div class="eco-headline">🌱 MG Custom Garage Eco Impact Flex (130 KM Round-Trip)</div>
                     <div class="eco-grid">
                         <div class="eco-item">
                             <div style="font-size: 11px; color: #34D399; font-weight:600;">🛑 AVOIDED EMISSIONS</div>
@@ -267,7 +267,7 @@ if not df_trips.empty:
                         </div>
                     </div>
                     <div style="font-size: 12px; color: #A7F3D0; margin-top: 10px; text-align: center; font-style: italic; font-weight: 500;">
-                        ⛽ Commuting 65 km together saved roughly <b>{total_fuel_liters_saved:.1f} Total Liters</b> of fuel vs driving separately!
+                        ⛽ Commuting 130 km round-trip together saved roughly <b>{total_fuel_liters_saved:.1f} Total Liters</b> of fuel vs driving separately!
                     </div>
                 </div>
             """, unsafe_allow_html=True)
