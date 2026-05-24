@@ -205,5 +205,13 @@ if not df_trips.empty:
                 elif s["p2_cp_gross"] > s["p1_cp_gross"]:
                     lines.append(f"• 🚗 **Carpool Dues:** {t_name} owes {f_name} **₹{s['p2_cp_gross'] - s['p1_cp_gross']:.0f}**")
                 
+                # FIXED: The string is now completely closed with clean variable targets
                 if s["p1_misc_gross"] > s["p2_misc_gross"]:
-                    lines.append(f"• 🍔 **Other Spend:** {f_name} owes {t_name} **₹{s['p1_misc_gross'] - s
+                    lines.append(f"• 🍔 **Other Spend:** {f_name} owes {t_name} **₹{s['p1_misc_gross'] - s['p2_misc_gross']:.0f}**")
+                elif s["p2_misc_gross"] > s["p1_misc_gross"]:
+                    lines.append(f"• 🍔 **Other Spend:** {t_name} owes {f_name} **₹{s['p2_misc_gross'] - s['p1_misc_gross']:.0f}**")
+
+                breakdown_html = "<br>".join(lines) if lines else "• No segment debts."
+
+                st.markdown(f"""
+                <div class="mobile-card
