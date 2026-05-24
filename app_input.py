@@ -9,7 +9,7 @@ import random
 
 st.set_page_config(page_title="MG Logger", page_icon="📝", layout="centered")
 
-# Visual Engine: Glassmorphism Styling
+# Visual Engine: Clean High-Contrast Glassmorphism Stacking System
 st.markdown("""
     <style>
     [data-testid="stAppViewContainer"] {
@@ -45,8 +45,8 @@ st.markdown("""
     .badge-full { background-color: rgba(56, 189, 248, 0.25); color: #38BDF8; border: 1px solid #0EA5E9; box-shadow: 0 0 12px rgba(56,189,248,0.4); }
     .badge-half { background-color: rgba(251, 191, 36, 0.25); color: #FBBF24; border: 1px solid #D97706; box-shadow: 0 0 12px rgba(251,191,36,0.4); }
     .badge-holiday { background-color: rgba(168, 85, 247, 0.25); color: #C084FC; border: 1px solid #9333EA; }
-    .lock-banner { background-color: #0F172A; border: 2px solid #EF4444; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; }
-    .future-banner { background-color: #0F172A; border: 2px solid #EAB308; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; }
+    .lock-banner { background-color: #0F172A; border: 2px solid #EF4444; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0px 0px 20px rgba(239, 68, 68, 0.3); }
+    .future-banner { background-color: #0F172A; border: 2px solid #EAB308; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0px 0px 20px rgba(234, 179, 8, 0.3); }
     </style>
 """, unsafe_allow_html=True)
 
@@ -68,13 +68,11 @@ today_date_ist = ist_now.date()
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
 
-# FORCE ABSOLUTE UNCACHEABLE HEADERS
 HEADERS = {
     "Authorization": f"token {TOKEN}",
     "Accept": "application/vnd.github.v3+json",
     "Cache-Control": "no-cache, no-store, must-revalidate",
-    "Pragma": "no-cache",
-    "Expires": "0"
+    "Pragma": "no-cache"
 }
 
 TRIP_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
@@ -83,13 +81,13 @@ EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.cs
 df_existing = pd.DataFrame()
 df_exp_existing = pd.DataFrame()
 
-# UN-CACHEABLE FORCED INITIALIZATION DATA FETCH
+# CORE SYNCHRONIZATION INITIALIZATION WITH CACHE OVERRIDES
 if TOKEN and REPO:
     try:
-        r = requests.get(f"{TRIP_URL}?cb={time.time()}_{random.randint(1,10000)}", headers=HEADERS)
+        r = requests.get(f"{TRIP_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
         if r.status_code == 200:
             df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
-        r_e = requests.get(f"{EXPENSE_URL}?cb={time.time()}_{random.randint(1,10000)}", headers=HEADERS)
+        r_e = requests.get(f"{EXPENSE_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
         if r_e.status_code == 200:
             df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
     except Exception:
@@ -107,7 +105,7 @@ with tab_trip:
 
     is_future_date = travel_date > today_date_ist
     
-    # EXPLICIT DATE STRING NORMALIZATION
+    # NORMALIZATION STRING MATCHING STRATEGY
     date_exists = False
     if not df_existing.empty and "Date" in df_existing.columns:
         target_str = travel_date.strftime("%Y-%m-%d").strip()
@@ -115,7 +113,7 @@ with tab_trip:
         date_exists = target_str in df_existing["Cleaned_Date_Str"].values
 
     if is_future_date:
-        st.markdown("<div class='future-banner'><h1 style='font-size:50px;'>🔮</h1><h2 style='color:#EAB308;font-weight:900;'>Ye kam bhi Loudu ka hi hai</h2><h4 style='color:#F1F5F9;'>You cannot log entries for future dates.</h4></div>", unsafe_allow_html=True)
+        st.markdown("<div class='future-banner'><h1 style='font-size:50px;margin:0;'>🔮</h1><h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;'>Ye kam bhi Loudu ka hi hai</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>You cannot log entries for future dates.</h4></div>", unsafe_allow_html=True)
 
     elif st.session_state.just_saved:
         st.success(st.session_state.saved_message)
@@ -123,9 +121,9 @@ with tab_trip:
         time.sleep(1.5)
         st.rerun()
 
-    # LOCK SCREEN DEPLOYMENT
+    # THE CHOSEN ONE: THE "LOUDU" LOCK BANNER ACTIVATION BOUNDARY
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
-        st.markdown("<div class='lock-banner'><h1 style='font-size:50px;'>🛑</h1><h2 style='color:#EF4444;font-weight:900;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='color:#F1F5F9;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
+        st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
 
     else:
         commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
@@ -140,7 +138,7 @@ with tab_trip:
 
         for idx, person in enumerate(all_commuters):
             with preview_cols[idx]:
-                st.markdown(f"<div style='text-align: center; font-weight: 800; color: #FFFFFF;'>{person}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='text-align: center; font-weight: 800; margin-bottom: 4px; color: #FFFFFF;'>{person}</div>", unsafe_allow_html=True)
                 if person in st.session_state.holiday_list:
                     st.markdown('<div style="text-align:center;"><span class="neon-badge badge-holiday">🌴 Leave</span></div>', unsafe_allow_html=True)
                 elif person == t_driver:
@@ -150,7 +148,7 @@ with tab_trip:
                 elif person in t_half:
                     st.markdown('<div style="text-align:center;"><span class="neon-badge badge-half">🌤️ Half</span></div>', unsafe_allow_html=True)
                 else:
-                    st.markdown('<div style="text-align:center; color:rgba(255,255,255,0.4); font-size:11px;">---</div>', unsafe_allow_html=True)
+                    st.markdown('<div style="text-align:center; color:rgba(255,255,255,0.4); font-size:11px; margin-top:5px;">---</div>', unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -165,21 +163,22 @@ with tab_trip:
         st.session_state.temp_half = half_day
 
         if st.button("💾 SAVE TRIP TO LEDGER"):
-            is_valid = True
+            # BACKEND FALLBACK LOCKDOWN VERIFICATION
+            is_valid_submission = True
             if TOKEN and REPO:
                 try:
-                    r_emergency = requests.get(f"{TRIP_URL}?final_check={time.time()}_{random.randint(1,10000)}", headers=HEADERS)
+                    r_emergency = requests.get(f"{TRIP_URL}?final_check={random.randint(1, 1000000)}", headers=HEADERS)
                     if r_emergency.status_code == 200:
                         df_emergency = pd.read_csv(io.StringIO(base64.b64decode(r_emergency.json()["content"]).decode("utf-8")))
                         if not df_emergency.empty and "Date" in df_emergency.columns:
                             t_emergency_str = travel_date.strftime("%Y-%m-%d").strip()
                             df_emergency["Emergency_Date_Str"] = pd.to_datetime(df_emergency["Date"], errors='coerce').dt.strftime("%Y-%m-%d").str.strip()
                             if t_emergency_str in df_emergency["Emergency_Date_Str"].values and not st.session_state.is_admin:
-                                is_valid = False
+                                is_valid_submission = False
                 except Exception:
                     pass
 
-            if not is_valid:
+            if not is_valid_submission:
                 st.error("🛑 Abe Loudu, data already exists on GitHub! Refreshing page...")
                 time.sleep(2)
                 st.rerun()
@@ -195,7 +194,7 @@ with tab_trip:
                 
                 payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
                 
-                r_sha = requests.get(f"{TRIP_URL}?getsha={time.time()}_{random.randint(1,10000)}", headers=HEADERS)
+                r_sha = requests.get(f"{TRIP_URL}?getsha={random.randint(1, 1000000)}", headers=HEADERS)
                 if r_sha.status_code == 200: payload["sha"] = r_sha.json()["sha"]
                 
                 if requests.put(TRIP_URL, headers=HEADERS, json=payload).status_code in [200, 201]:
@@ -247,7 +246,7 @@ with tab_expense:
                 df_exp_final = pd.concat([df_exp_existing, new_exp_row], ignore_index=True) if not df_exp_existing.empty else new_exp_row
                 payload_exp = {"message": f"Log expense: {item_desc}", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
                 
-                r_exp_sha = requests.get(f"{EXPENSE_URL}?getexpsha={time.time()}_{random.randint(1,10000)}", headers=HEADERS)
+                r_exp_sha = requests.get(f"{EXPENSE_URL}?getexpsha={random.randint(1, 1000000)}", headers=HEADERS)
                 if r_exp_sha.status_code == 200: payload_exp["sha"] = r_exp_sha.json()["sha"]
                 
                 if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
@@ -294,7 +293,7 @@ with st.expander("🛠️ Admin Controls (Authorized Only)"):
                 if "Emergency_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Emergency_Date_Str"])
                 
                 payload = {"message": f"Admin delete trip: {delete_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-                r_del_sha = requests.get(f"{TRIP_URL}?delsha={time.time()}_{random.randint(1,10000)}", headers=HEADERS)
+                r_del_sha = requests.get(f"{TRIP_URL}?delsha={random.randint(1, 1000000)}", headers=HEADERS)
                 if r_del_sha.status_code == 200: payload["sha"] = r_del_sha.json()["sha"]
                 
                 if requests.put(TRIP_URL, headers=HEADERS, json=payload).status_code in [200, 201]:
@@ -315,7 +314,7 @@ with st.expander("🛠️ Admin Controls (Authorized Only)"):
                     df_exp_final = df_exp_final.drop(columns=['Display_Label'])
                 payload_exp = {"message": "Admin deleted expense", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
                 
-                r_exp_del_sha = requests.get(f"{EXPENSE_URL}?expdelsha={time.time()}_{random.randint(1,10000)}", headers=HEADERS)
+                r_exp_del_sha = requests.get(f"{EXPENSE_URL}?expdelsha={random.randint(1, 1000000)}", headers=HEADERS)
                 if r_exp_del_sha.status_code == 200: payload_exp["sha"] = r_exp_del_sha.json()["sha"]
                 
                 if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
