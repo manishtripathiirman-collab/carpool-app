@@ -58,17 +58,22 @@ st.markdown('<p class="mobile-title">🌅 MG Carpool Hub</p>', unsafe_allow_html
 
 all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
+# Time calculations
+utc_now = datetime.datetime.utcnow()
+ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
+today_date_ist = ist_now.date()
+
+# Dynamic State Initialization
 if "holiday_list" not in st.session_state: st.session_state.holiday_list = []
 if "just_saved" not in st.session_state: st.session_state.just_saved = False
 if "saved_message" not in st.session_state: st.session_state.saved_message = ""
 if "last_processed_date" not in st.session_state: st.session_state.last_processed_date = None
 if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
-if "force_date_reset" not in st.session_state: st.session_state.force_date_reset = False
 
-utc_now = datetime.datetime.utcnow()
-ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
-today_date_ist = ist_now.date()
+# CRITICAL FIX: Explicit State Key Binding for the Date Picker
+if "trip_date_picker_key" not in st.session_state:
+    st.session_state["trip_date_picker_key"] = today_date_ist
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
 REPO = st.secrets.get("GITHUB_REPO", "").strip()
@@ -101,11 +106,8 @@ if TOKEN and REPO:
 tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
 
 with tab_trip:
-    default_date = today_date_ist
-    if st.session_state.force_date_reset:
-        st.session_state.force_date_reset = False
-
-    travel_date = st.date_input("Date of Travel", default_date, key="trip_date_norm")
+    # Read date directly from session state binding
+    travel_date = st.date_input("Date of Travel", key="trip_date_picker_key")
 
     if st.session_state.last_processed_date != str(travel_date):
         st.session_state.disable_lock = False
@@ -123,7 +125,7 @@ with tab_trip:
     if is_future_date:
         st.markdown("<div class='future-banner'><h1 style='font-size:50px;margin:0;'>🔮</h1><h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;'>Ye kam bhi Loudu ka hi hai</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>You cannot log entries for future dates.</h4></div>", unsafe_allow_html=True)
         if st.button("🔙 GO BACK / CHANGE DATE", key="back_future_btn"):
-            st.session_state.force_date_reset = True
+            st.session_state["trip_date_picker_key"] = today_date_ist
             st.rerun()
 
     elif st.session_state.just_saved:
@@ -135,7 +137,7 @@ with tab_trip:
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
         st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
         if st.button("🔙 GO BACK / CHANGE DATE", key="back_lock_btn"):
-            st.session_state.force_date_reset = True
+            st.session_state["trip_date_picker_key"] = today_date_ist
             st.rerun()
 
     else:
