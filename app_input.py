@@ -21,7 +21,7 @@ st.markdown("""
     div.stButton > button { width: 100%; background-color: #6366F1 !important; color: white !important; border-radius: 12px; font-weight: 700; padding: 12px; }
     .admin-btn > div.stButton > button { background-color: #EF4444 !important; }
     .back-btn > div.stButton > button { background-color: #475569 !important; border: 1px solid #64748B !important; margin-top: 15px; }
-    .exit-admin-btn > div.stButton > button { background-color: #1E293B !important; border: 1px solid #334155 !important; margin-top: 10px; color: #94A3B8 !important; }
+    .exit-admin-btn > div.stButton > button { background-color: #1E293B !important; border: 1px solid #334155 !important; margin-top: 10px; color: #94A3B8 !important; color: #94A3B8 !important; }
     .stTabs [data-baseweb="tab-list"] { gap: 10px; }
     .stTabs [data-baseweb="tab"] { background-color: rgba(30, 41, 59, 0.7) !important; border: 1px solid #334155 !important; border-radius: 8px 8px 0px 0px; padding: 10px 20px !important; color: #94A3B8 !important; }
     .stTabs [aria-selected="true"] { background-color: #6366F1 !important; color: white !important; border-color: #6366F1 !important; }
@@ -53,7 +53,7 @@ if "last_processed_date" not in st.session_state: st.session_state.last_processe
 if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
 
-# Forces the app to live precisely in India Standard Time (+5.5 Hours)
+# Dynamic Indian Standard Time (+5.5 Hours) Calculator Engine
 utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
@@ -76,4 +76,29 @@ if TOKEN and REPO:
     if r_e.status_code == 200:
         df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
 
-tab_trip, tab_expense =
+# FIXED: Re-anchored the layout tab selection assignment sequence completely
+tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
+
+# TAB 1: COMMUTE LOGGING
+with tab_trip:
+    if "reset" in st.query_params:
+        st.query_params.clear()
+        travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_reset")
+    else:
+        travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_norm")
+
+    if st.session_state.last_processed_date != str(travel_date):
+        st.session_state.disable_lock = False
+        st.session_state.last_processed_date = str(travel_date)
+
+    is_future_date = travel_date > today_date_ist
+    date_exists = str(travel_date) in df_existing["Date"].astype(str).values if not df_existing.empty else False
+
+    if is_future_date:
+        st.warning("⏳ FUTURE TRIPS NOT ALLOWED")
+        st.markdown('<div class="future-banner"><span style="font-size: 45px;">🔮</span><h2 style="color: #EAB308; margin-top: 10px; font-weight:800; font-family:sans-serif;">Ye kam bhi Loudu ka hi hai</h2><h4 style="color: #F8FAFC; font-weight: 700; margin-top: 5px;">You cannot log entries for future dates.</h4></div>', unsafe_allow_html=True)
+        st.markdown('<div class="back-btn">', unsafe_allow_html=True)
+        if st.button("🔙 GO BACK TO TODAY", key="future_back_btn"):
+            st.query_params["reset"] = "true"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=
