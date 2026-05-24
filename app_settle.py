@@ -86,13 +86,31 @@ if not df_trips.empty:
 if not df_expenses.empty:
     df_expenses["Date"] = pd.to_datetime(df_expenses["Date"], errors='coerce')
 
+# --- DYNAMIC BILLING WINDOW ENGINE ---
 st.markdown('<p class="section-title">📅 Select Settlement Week</p>', unsafe_allow_html=True)
 
-# 1. WEEKLY BILLING WINDOW DROPDOWN
-week_options = ["Week 21 (18 May - 22 May 2026)", "All Time Logs Cumulative"]
+utc_now = datetime.datetime.utcnow()
+ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
+today = ist_now.date()
+
+days_since_monday = today.weekday()
+current_monday = today - datetime.timedelta(days=days_since_monday)
+current_friday = current_monday + datetime.timedelta(days=4)
+
+current_week_str = f"Current Week ({current_monday.strftime('%d %b')} - {current_friday.strftime('%d %b %Y')})"
+past_week_str = "Week 21 (18 May - 22 May 2026)"
+
+week_options = [current_week_str, past_week_str, "All Time Logs Cumulative"]
 selected_window = st.selectbox("Choose Billing Week Window:", week_options, label_visibility="collapsed")
 
-if "Week 21" in selected_window:
+if selected_window == current_week_str:
+    start_w = pd.to_datetime(current_monday)
+    end_w = pd.to_datetime(current_friday) + datetime.timedelta(days=2)
+    if not df_trips.empty:
+        df_trips = df_trips[(df_trips["Date"] >= start_w) & (df_trips["Date"] <= end_w)]
+    if not df_expenses.empty:
+        df_expenses = df_expenses[(df_expenses["Date"] >= start_w) & (df_expenses["Date"] <= end_w)]
+elif selected_window == past_week_str:
     start_w = pd.to_datetime("2026-05-18")
     end_w = pd.to_datetime("2026-05-24")
     if not df_trips.empty:
@@ -100,13 +118,12 @@ if "Week 21" in selected_window:
     if not df_expenses.empty:
         df_expenses = df_expenses[(df_expenses["Date"] >= start_w) & (df_expenses["Date"] <= end_w)]
 
-# --- MAIN COMPILING LOGIC ---
+# --- SCORECARD & ECO ENGINE ---
 driver_counts = {name: 0 for name in all_commuters}
 passenger_counts = {name: 0 for name in all_commuters}
 total_trips_logged = 0
 balances = {name: 0.0 for name in all_commuters}
 
-# Fuel-Type Configuration (Emissions saved per passenger per 130KM round-trip)
 eco_saved_footprint = {
     "Manish": 130 * 0.16,     # Stage 4 Petrol
     "Abhishek": 130 * 0.13,   # Stage 6 Diesel
@@ -150,7 +167,7 @@ if not df_expenses.empty:
                 if p in balances: balances[p] -= per_person_cost
             if payer in balances: balances[payer] += total_amount
 
-# 2. WEEKLY PERFORMANCE SCORECARDS
+# Display Performance Scorecards
 st.markdown('<p class="section-title">⚡ Weekly Performance Scorecard</p>', unsafe_allow_html=True)
 top_driver = max(driver_counts, key=driver_counts.get) if total_trips_logged > 0 else "None"
 top_passenger = max(passenger_counts, key=passenger_counts.get) if total_trips_logged > 0 else "None"
@@ -172,7 +189,6 @@ st.markdown(
 tab_payout, tab_raw = st.tabs(["💵 Payout Summary", "📋 Split Expense History"])
 
 with tab_payout:
-    # 3. CONSOLIDATED NET PAIRWISE SETTLEMENTS (OPTIMIZED MATHEMATICAL NETTING ENGINE)
     st.markdown('<p class="section-title">💎 Consolidated Net Pairwise Settlements</p>', unsafe_allow_html=True)
     
     debtors = []
@@ -193,8 +209,8 @@ with tab_payout:
         if debtors[d_idx][1] < 0.01: d_idx += 1
         if creditors[c_idx][1] < 0.01: c_idx += 1
 
-    # 4. WHATSAPP TEXT GENERATORS & SHARE BUTTONS
-    whatsapp_lines = ["*🚗 Carpool Settlement Summary*\\n-------------------------------------"]
+    # WhatsApp Text Builder
+    whatsapp_lines = ["*🚗 Carpool Settlement Summary*", "-------------------------------------"]
     if not pairwise_txs:
         st.info("Perfect equilibrium achieved! Matrix balances are zero.")
     else:
@@ -202,17 +218,26 @@ with tab_payout:
             st.markdown(f'<div class="pairwise-card"><div><div class="payer-info">👉 {deb}</div><div class="payer-sub">Owes net single payout directly to <b>{cred}</b></div></div><div class="payout-pill">₹{amt:,.0f}</div></div>', unsafe_allow_html=True)
             whatsapp_lines.append(f"👉 *{deb}* pays *{cred}*:  *₹{amt:.0f}*")
             
-    whatsapp_lines.append("-------------------------------------\\n💡 _Calculated strictly via direct peer netting loops._")
-    whatsapp_text = "\\n".join(whatsapp_lines)
+    whatsapp_lines.append("-------------------------------------")
+    whatsapp_lines.append("💡 _Calculated strictly via direct peer netting loops._")
+    whatsapp_text_raw = "\n".join(whatsapp_lines)
 
-    st.markdown('<p class="section-title">🟢 Copy for WhatsApp Group Chat:</p>', unsafe_allow_html=True)
-    clean_wp_display = whatsapp_text.replace('\\n', '\n')
-    st.markdown(f'<div class="whatsapp-box">{clean_wp_display.replace("\n", "<br>")}</div>', unsafe_allow_html=True)
+    st.markdown('<p class="section-title">🟢 Summary Output Container</p>', unsafe_allow_html=True)
+    st.markdown(f'<div class="whatsapp-box">{whatsapp_text_raw.replace("\n", "<br>")}</div>', unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
-    st.button("💬 SHARE DIRECT TO WHATSAPP GROUP")
+    
+    # AIRTIGHT FIX: HTML-based clipboard interaction to safely handle text copies on mobile/web viewports
+    escaped_text = whatsapp_text_raw.replace("'", "\\'").replace("\n", "\\n")
+    copy_button_html = f"""
+    <button onclick="navigator.clipboard.writeText('{escaped_text}'); alert('📋 Summary text copied to clipboard successfully! Open WhatsApp and paste.');" 
+    style="width:100%; background:linear-gradient(90deg, #10B981, #059669); color:white; border-radius:12px; font-weight:800; padding:14px; border:none; cursor:pointer; font-size:16px; box-shadow:0px 4px 12px rgba(16, 185, 129, 0.3);">
+        📋 COPY FOR WHATSAPP GROUP CHAT
+    </button>
+    """
+    st.components.v1.html(copy_button_html, height=60)
 
-    # 5. DYNAMIC ECO IMPACT TRACKER PANEL (CALIBRATED VEHICLE FUEL TIERS)
+    # Eco Impact Panel
     tree_days_saved = int(total_carbon_offset_kg / 0.06) 
     st.markdown(
         f"""
