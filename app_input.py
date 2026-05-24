@@ -69,7 +69,7 @@ utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today_date_ist = ist_now.date()
 
-# READ PURELY FROM THE SAFELY ISOLATED STREAMLIT SERVER VAULT
+# SECURE Handshake: Pulls parameters seamlessly from server context fields
 TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO = st.secrets.get("GITHUB_REPO", "")
 
@@ -125,7 +125,7 @@ with tab_trip:
         time.sleep(1.5)
         st.rerun()
 
-    # THE CHOSEN ONE: DUPLICATE ENTRY LOCKOUT TRIGGER
+    # THE CHOSEN ONE: DUPLICATE RECORD PROTECTION TRIGGER
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
         st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
 
@@ -309,4 +309,21 @@ with st.expander("🛠️ Admin Controls (Authorized Only)"):
             
         st.markdown("---")
         if not df_exp_existing.empty:
-            st.markdown("#### 🍔
+            st.markdown("#### 🍔 Delete Manage Split Expenses")
+            df_exp_existing['Display_Label'] = df_exp_existing['Date'].astype(str) + " | " + df_exp_existing['Paid By'] + " | ₹" + df_exp_existing['Total Amount'].astype(str) + " (" + df_exp_existing['Description'] + ")"
+            selected_exp_label = st.selectbox("Select Bill Record to delete:", df_exp_existing['Display_Label'].unique())
+            st.markdown('<div class="admin-btn">', unsafe_allow_html=True)
+            if st.button("🗑️ DELETE EXPENSE RECORD"):
+                df_exp_final = df_exp_existing[df_exp_existing['Display_Label'] != selected_exp_label]
+                if 'Display_Label' in df_exp_final.columns:
+                    df_exp_final = df_exp_final.drop(columns=['Display_Label'])
+                payload_exp = {"message": "Admin deleted expense", "content": base64.b64encode(df_exp_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
+                
+                r_exp_del_sha = requests.get(f"{EXPENSE_URL}?expdelsha={random.randint(1, 1000000)}", headers=HEADERS)
+                if r_exp_del_sha.status_code == 200: payload_exp["sha"] = r_exp_del_sha.json()["sha"]
+                
+                if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
+                    st.error("🗑️ Expense record wiped out successfully!")
+                    time.sleep(1.5)
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
