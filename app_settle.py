@@ -25,6 +25,22 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] { background-color: rgba(30, 41, 59, 0.7) !important; border: 1px solid #334155 !important; border-radius: 8px 8px 0px 0px; padding: 10px 20px !important; color: #94A3B8 !important; }
     .stTabs [aria-selected="true"] { background-color: #6366F1 !important; color: white !important; border-color: #6366F1 !important; }
     .whatsapp-btn { display: flex; align-items: center; justify-content: center; background-color: #25D366 !important; color: white !important; font-weight: 700; font-size: 16px; text-decoration: none; padding: 14px; border-radius: 12px; width: 100%; text-align: center; margin-top: 15px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3); }
+    
+    .stat-container { background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 15px; }
+    .stat-title { font-size: 11px; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-value { font-size: 15px; color: #F8FAFC; font-weight: 800; margin-top: 2px; }
+    
+    .eco-container {
+        background: rgba(16, 185, 129, 0.08);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 20px;
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.05);
+    }
+    .eco-headline { color: #10B981 !important; font-weight: 800; font-size: 15px; margin-bottom: 10px; letter-spacing: 0.3px; display: flex; align-items: center; gap: 6px; }
+    .eco-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .eco-item { background: rgba(15, 23, 42, 0.4); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.1); }
     </style>
 """, unsafe_allow_html=True)
 
@@ -43,11 +59,9 @@ if not TOKEN or not REPO:
 URL_TRIPS = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
 URL_EXPENSES = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
 
-# --- LIGHTWEIGHT HIGH-PERFORMANCE CACHING FETCH ENGINE ---
-@st.cache_data(ttl=15)  # Caches database results for 15 seconds to stop data lagging & network strains
+@st.cache_data(ttl=15)
 def fetch_carpool_data(url, headers):
     try:
-        # Appending a low-overhead cache buster interval string to URL
         r = requests.get(f"{url}?cb={int(time.time() / 15)}", headers=headers)
         if r.status_code == 200:
             csv_text = base64.b64decode(r.json()["content"]).decode("utf-8")
@@ -59,7 +73,6 @@ def fetch_carpool_data(url, headers):
         pass
     return pd.DataFrame()
 
-# Parallel non-blocking execution fetch
 df_trips = fetch_carpool_data(URL_TRIPS, HEADERS)
 df_expenses = fetch_carpool_data(URL_EXPENSES, HEADERS)
 
@@ -79,20 +92,47 @@ if not df_trips.empty:
     carpool_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
     other_debts = {p1: {p2: 0.0 for p2 in commuters} for p1 in commuters}
     
+    driver_tally = {c: 0 for c in commuters}
+    passenger_tally = {c: 0 for c in commuters}
+    
+    # Precision Garage Engine scaled specifically to a 65 KM run
+    co2_saved = 0.0
+    total_fuel_liters_saved = 0.0
+
     # Process Travel Logs
     for _, row in filtered_trips.iterrows():
         driver_matched = normalize_name(row['Driver'])
-        if driver_matched not in commuters: continue
+        if driver_matched in commuters:
+            driver_tally[driver_matched] += 1
+            
+            # --- HIGHWAY 65 KM GARAGE METRICS ENGINE ---
+            if driver_matched == "Manish":
+                co2_saved += 10.3  # Saved kg per 65km run
+                total_fuel_liters_saved += 5.2
+            elif driver_matched == "Abhishek":
+                co2_saved += 11.1  # Saved kg per 65km run
+                total_fuel_liters_saved += 5.8
+            else:
+                co2_saved += 12.2  # Saved kg per 65km run (CNG Cars)
+                total_fuel_liters_saved += 6.5
+            
         full_p = [normalize_name(p) for p in str(row['Full Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
         half_p = [normalize_name(p) for p in str(row['Half Day Passengers']).split(',') if p.strip() and p.strip() != "None"]
+        
         for p in full_p:
-            if p in commuters and p != driver_matched: carpool_debts[p][driver_matched] += 300.0
+            if p in commuters and p != driver_matched: 
+                carpool_debts[p][driver_matched] += 300.0
+                passenger_tally[p] += 1
         for p in half_p:
-            if p in commuters and p != driver_matched: carpool_debts[p][driver_matched] += 150.0
+            if p in commuters and p != driver_matched: 
+                carpool_debts[p][driver_matched] += 150.0
+                passenger_tally[p] += 0.5
 
     # Process Split Expenses Logs
     total_period_expenses = 0.0
     filtered_expenses = pd.DataFrame()
+    expense_keywords = []
+    
     if not df_expenses.empty:
         filtered_expenses = df_expenses[(df_expenses['Clean_Date'] >= start_date) & (df_expenses['Clean_Date'] <= end_date)]
         if not filtered_expenses.empty:
@@ -100,6 +140,12 @@ if not df_trips.empty:
             for _, row in filtered_expenses.iterrows():
                 payer = normalize_name(row['Paid By'])
                 per_head = float(row['Per Head Cost'])
+                desc_text = str(row['Description']).lower()
+                
+                for word in ['lunch', 'food', 'turf', 'cricket', 'party', 'petrol', 'fuel', 'snack']:
+                    if word in desc_text:
+                        expense_keywords.append(word)
+                        
                 consumers = [normalize_name(p) for p in str(row['Shared By']).split(',') if p.strip()]
                 for p in consumers:
                     if p in commuters and p != payer: other_debts[p][payer] += per_head
@@ -134,6 +180,38 @@ if not df_trips.empty:
                     })
 
     net_settlements = [s for s in net_settlements if round(s["Amount"], 2) > 0]
+
+    # --- TOP ROW: SCORECARDS ---
+    st.markdown("#### ⚡ Window Performance Scorecard")
+    m_col1, m_col2 = st.columns(2)
+    with m_col1:
+        top_driver = max(driver_tally, key=driver_tally.get) if sum(driver_tally.values()) > 0 else "None"
+        st.markdown(f'<div class="stat-container"><div class="stat-title">👑 King of Wheel</div><div class="stat-value">{top_driver} ({driver_tally.get(top_driver, 0)} Days)</div></div>', unsafe_allow_html=True)
+    with m_col2:
+        top_passenger = max(passenger_tally, key=passenger_tally.get) if sum(passenger_tally.values()) > 0 else "None"
+        st.markdown(f'<div class="stat-container"><div class="stat-title">🎒 Top Passenger</div><div class="stat-value">{top_passenger} ({int(passenger_tally.get(top_passenger, 0))} Rides)</div></div>', unsafe_allow_html=True)
+
+    # --- UPDATED 65KM HIGH-VOLUME EMISSIONS FLEX PANEL ---
+    equivalent_tree_days = co2_saved / 0.06 if co2_saved > 0 else 0
+
+    st.markdown(f"""
+        <div class="eco-container">
+            <div class="eco-headline">🌱 MG Custom Garage Eco Impact Flex (65 KM Route)</div>
+            <div class="eco-grid">
+                <div class="eco-item">
+                    <div style="font-size: 11px; color: #34D399; font-weight:600;">🛑 AVOIDED EMISSIONS</div>
+                    <div style="font-size: 20px; font-weight: 800; color: #F8FAFC; margin-top:2px;">{co2_saved:.1f} kg <span style="font-size:12px; color:#A7F3D0; font-weight:500;">CO₂</span></div>
+                </div>
+                <div class="eco-item">
+                    <div style="font-size: 11px; color: #34D399; font-weight:600;">🌲 TREE-DAYS OFFSET</div>
+                    <div style="font-size: 20px; font-weight: 800; color: #F8FAFC; margin-top:2px;">{int(equivalent_tree_days):,} <span style="font-size:12px; color:#A7F3D0; font-weight:500;">Days</span></div>
+                </div>
+            </div>
+            <div style="font-size: 12px; color: #A7F3D0; margin-top: 10px; text-align: center; font-style: italic; font-weight: 500;">
+                ⛽ Commuting 65 km together saved roughly <b>{total_fuel_liters_saved:.1f} Total Liters</b> of fuel vs driving separately!
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
     tab_summary, tab_ledger = st.tabs(["💵 Payout Summary", "📋 Split Expense History"])
 
@@ -170,8 +248,16 @@ if not df_trips.empty:
             
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # --- CONSOLIDATED WHATSAPP ENGINE ---
-            whatsapp_text = f"🚗 *Net Consolidated Payout Summary ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
+            # --- CONSOLIDATED WHATSAPP OUTPUT ENGINE ---
+            header_emoji, header_title = "🚗", "Carpool Net Payout Summary"
+            if expense_keywords:
+                if any(k in expense_keywords for k in ['lunch', 'food', 'snack']): header_emoji, header_title = "🍔", "MG Food & Ride Settlement Desk"
+                elif any(k in expense_keywords for k in ['turf', 'cricket']): header_emoji, header_title = "🏏", "MG Cricket Turf Match Settlements"
+                elif any(k in expense_keywords for k in ['party']): header_emoji, header_title = "🍻", "MG Party Weekend Ledger"
+                elif any(k in expense_keywords for k in ['petrol', 'fuel']): header_emoji, header_title = "⛽", "MG Fuel Refill Matrix"
+            
+            whatsapp_text = f"{header_emoji} *{header_title} ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b')}):*\n"
+            whatsapp_text += f"🌱 *Eco Tally:* {co2_saved:.1f} kg CO₂ saved ({int(equivalent_tree_days):,} Tree-Days offset!)\n"
             whatsapp_text += "--------------------------------------\n"
             for s in net_settlements:
                 f_n, t_n = s["From"], s["To"]
@@ -190,11 +276,9 @@ if not df_trips.empty:
     with tab_ledger:
         st.markdown(f"### 📋 Full Bill Ledger Breakdown (Selected Window Total: ₹{total_period_expenses:,.2f})")
         if not filtered_expenses.empty:
-            # Drop the temporary datetime tracking object right before rendering to save device UI memory
             render_df = filtered_expenses.drop(columns=['Clean_Date']) if 'Clean_Date' in filtered_expenses.columns else filtered_expenses
             st.dataframe(render_df.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
-        else: 
-            st.info("No custom shared bills found within this selected date window.")
+        else: st.info("No custom shared bills found within this selected date window.")
             
         st.markdown("---")
         with st.expander("📱 View Raw Travel Calendar Logs History"):
