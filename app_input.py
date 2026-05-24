@@ -24,7 +24,7 @@ st.markdown(
         box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.5) !important; 
         margin-top: 20px !important;
     }
-    .mobile-title { font-family: sans-serif; font-size: 28px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 20px; }
+    .mobile-title { font-family: sans-serif; font-size: 24px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 20px; }
     label, p, span, h2, h3, h4 { color: #F1F5F9 !important; font-weight: 700 !important; }
     div[data-baseweb="select"], div[data-baseweb="base-input"], .stDateInput div { 
         background-color: #1E293B !important; border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; 
@@ -54,7 +54,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.markdown('<p class="mobile-title">🌅 MG Carpool Hub</p>', unsafe_allow_html=True)
+# Premium Minimalist Header Branding
+st.markdown('<p class="mobile-title">🌅 MG Carpool Hub — <span style="font-size: 11px; font-weight: 400; color: #64748B; text-transform: lowercase; vertical-align: middle;">mantri</span></p>', unsafe_allow_html=True)
 
 all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
