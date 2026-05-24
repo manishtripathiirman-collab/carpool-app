@@ -9,15 +9,21 @@ import urllib.parse
 
 st.set_page_config(page_title="MG Settlement", page_icon="📊", layout="centered")
 
-# Visual Engine: Ultra-Lean Cyber-Dark Settlement Theme
+# Visual Engine: Ultra-Lean Cyber-Dark Theme with Universal Mobile Scrolling Viewports
 st.markdown(
     """
     <style>
-    [data-testid="stAppViewContainer"] { background-color: #0F172A !important; }
+    [data-testid="stAppViewContainer"] { 
+        background-color: #0F172A !important; 
+        overflow-y: auto !important; 
+    }
     .block-container {
         background: rgba(30, 41, 59, 0.5) !important;
-        padding: 15px !important; border-radius: 16px !important; 
-        border: 1px solid rgba(255, 255, 255, 0.08) !important; margin-top: 5px !important;
+        padding: 15px !important; 
+        border-radius: 16px !important; 
+        border: 1px solid rgba(255, 255, 255, 0.08) !important; 
+        margin-top: 35px !important;
+        margin-bottom: 30px !important;
     }
     .main-title { font-size: 22px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 2px; text-align: center; }
     .section-title { font-size: 15px !important; font-weight: 800; color: #94A3B8 !important; margin-top: 12px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -67,8 +73,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Premium Minimalist Header Branding
-st.markdown('<p class="main-title">💰 MG Settlement Desk — <span style="font-size: 11px; font-weight: 400; color: #64748B; text-transform: lowercase; vertical-align: middle;">mantri</span></p>', unsafe_allow_html=True)
+# Regular hyphen-dash with ultra-small lowercase mantri signature
+st.markdown('<p class="main-title">💰 MG Settlement Desk - <span style="font-size: 10px; font-weight: 400; color: #64748B; text-transform: lowercase; vertical-align: middle;">mantri</span></p>', unsafe_allow_html=True)
 
 all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
 
@@ -79,18 +85,21 @@ HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.
 TRIP_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_logs.csv"
 EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.csv"
 
-df_trips = pd.DataFrame()
-df_expenses = pd.DataFrame()
+df_trips_raw = pd.DataFrame()
+df_expenses_raw = pd.DataFrame()
 
 if TOKEN and REPO:
     try:
         r = requests.get(f"{TRIP_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
         if r.status_code == 200:
-            df_trips = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
+            df_trips_raw = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
         r_e = requests.get(f"{EXPENSE_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
         if r_e.status_code == 200:
-            df_expenses = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
+            df_expenses_raw = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
     except Exception: pass
+
+df_trips = df_trips_raw.copy()
+df_expenses = df_expenses_raw.copy()
 
 if not df_trips.empty:
     df_trips["Date"] = pd.to_datetime(df_trips["Date"], errors='coerce')
@@ -260,18 +269,4 @@ with tab_payout:
                     <div class="scorecard-val" style="color:#34D399; font-size:16px;">{total_carbon_offset_kg:.1f} kg CO₂</div>
                 </div>
                 <div class="scorecard-box" style="background:rgba(0,0,0,0.25); border:none;">
-                    <div class="scorecard-label" style="color:#A7F3D0;">Equivalency Scale</div>
-                    <div class="scorecard-val" style="color:#34D399; font-size:16px;">{tree_days_saved} Tree-Days</div>
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-with tab_raw:
-    st.markdown("#### 🛒 Current Ledger Subsets")
-    if not df_expenses.empty:
-        st.dataframe(df_expenses.drop(columns=["Date"], errors="ignore"), use_container_width=True)
-    else:
-        st.info("No active shared bills captured inside this timeline window.")
+                    <div class="score
