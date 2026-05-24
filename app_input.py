@@ -9,7 +9,7 @@ import random
 
 st.set_page_config(page_title="MG Logger", page_icon="🚗", layout="centered")
 
-# Visual Engine: Pure Dark Layout with Max-Size Alert Banners
+# Visual Engine: Pure Dark Layout with Label Auto-Scale & Anti-Truncation Engine
 st.markdown(
     """
     <style>
@@ -27,7 +27,20 @@ st.markdown(
         margin-bottom: 30px !important;
     }
     .mobile-title { font-family: sans-serif; font-size: 24px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 20px; }
-    label, p, span, h2, h3, h4 { color: #F1F5F9 !important; font-weight: 700 !important; }
+    
+    /* 📋 Form Label Anti-Truncation Rules */
+    label, p, span, h2, h3, h4 { 
+        color: #F1F5F9 !important; 
+        font-weight: 700 !important;
+        white-space: normal !important; /* Prevents text from being forced into single-line truncation */
+        word-break: break-word !important; /* Force-wraps text safely on ultra-narrow viewports */
+        display: inline-block !important;
+    }
+    div[data-testid="stWidgetLabel"] {
+        white-space: normal !important;
+        word-break: break-word !important;
+    }
+    
     div[data-baseweb="select"], div[data-baseweb="base-input"], .stDateInput div { 
         background-color: #1E293B !important; border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; 
     }
@@ -221,9 +234,7 @@ with tab_trip:
 with tab_expense:
     st.markdown("### 💰 Shared Expense Desk")
     
-    # Checkbox feature toggle to trigger Direct Form Editing Modality
     edit_mode = st.checkbox("✏️ Modify Existing Entry", value=False, key="exp_edit_mode_toggle")
-    
     exp_date = st.date_input("Date of Expense", today_date_ist, key="exp_date_picker")
     is_future_exp_date = exp_date > today_date_ist
 
@@ -244,7 +255,6 @@ with tab_expense:
         time.sleep(1.5)
         st.rerun()
     else:
-        # Pre-populate variables for the fields
         default_payer = all_commuters[0]
         default_amount = 0.0
         default_desc = ""
@@ -252,7 +262,6 @@ with tab_expense:
         selected_target_row_idx = None
         expense_exists = False
         
-        # Filter existing entries for the chosen date to populate edit options
         date_matches = pd.DataFrame()
         if not df_exp_existing.empty and "Date" in df_exp_existing.columns:
             t_dash_e = exp_date.strftime("%Y-%m-%d").strip()
@@ -265,13 +274,11 @@ with tab_expense:
                 st.info("ℹ️ No expenses logged on this date to modify.")
                 item_desc = ""
             else:
-                # Let user select which item on that day they want to edit
                 desc_list = date_matches["Description"].tolist()
                 selected_desc = st.selectbox("Select existing description to modify:", desc_list)
                 
-                # Fetch row details
                 target_row = date_matches[date_matches["Description"] == selected_desc].iloc[0]
-                selected_target_row_idx = target_row.name # Catch original row index
+                selected_target_row_idx = target_row.name
                 
                 default_payer = str(target_row.get("Paid By", all_commuters[0])).strip()
                 default_amount = float(target_row.get("Total Amount", 0.0))
@@ -283,4 +290,50 @@ with tab_expense:
         else:
             item_desc = st.text_input("What was this for?", value="", placeholder="e.g., Office Lunch, Turf booking, Snacks")
             
-            # Dynamic validation locking logic for standard
+            if not date_matches.empty and item_desc.strip():
+                date_matches["Cleaned_Desc_Str"] = date_matches["Description"].astype(str).str.strip().str.lower()
+                expense_exists = item_desc.strip().lower() in date_matches["Cleaned_Desc_Str"].values
+
+        if expense_exists and not st.session_state.is_admin:
+            st.markdown(
+                """
+                <div class='giant-lock-banner'>
+                    <h1 style='font-size:75px;margin:0;'>🛑</h1>
+                    <h2 style='font-size:38px;color:#EF4444;font-weight:900;margin:15px 0;line-height:1.2;'>Abe Loudu dubara expense kyun kar raha!</h2>
+                    <h4 style='font-size:20px;color:#F1F5F9;font-weight:700;margin:0;'>Turn on 'Modify Existing Entry' above to edit this item safely.</h4>
+                </div>
+                """, 
+                unsafe_allow_html=True
+            )
+        else:
+            payer_idx = all_commuters.index(default_payer) if default_payer in all_commuters else 0
+            payer = st.selectbox("Who Paid the Bill?", all_commuters, index=payer_idx, key="exp_payer")
+            amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=default_amount, step=50.0, key="exp_amount")
+            
+            if edit_mode and item_desc:
+                st.info(f"✏️ Modifying description asset row: **{item_desc}**")
+
+            st.markdown("#### 👥 Split Amount Among Whom?")
+            selected_consumers = []
+            cols = st.columns(len(all_commuters))
+            for idx, person in enumerate(all_commuters):
+                with cols[idx]:
+                    is_checked = person in default_shares if edit_mode else True
+                    if st.checkbox(person, value=is_checked, key=f"share_check_{person}"):
+                        selected_consumers.append(person.strip().title())
+
+            button_label = "📝 SAVE MODIFIED EXPENSE" if edit_mode else "💸 DISTRIBUTE & SAVE EXPENSE"
+            
+            if st.button(button_label):
+                if amount <= 0.0 or not item_desc.strip() or len(selected_consumers) == 0:
+                    st.error("🛑 Fill all details properly! Amount must be > 0 and at least one person chosen.")
+                else:
+                    with st.spinner("Saving expense ledger..."):
+                        split_share = round(amount / len(selected_consumers), 2)
+                        new_exp_row = pd.DataFrame([{"Date": str(exp_date), "Paid By": payer.strip().title(), "Total Amount": amount, "Description": item_desc.strip(), "Shared By": ", ".join(selected_consumers), "Per Head Cost": split_share}])
+                        
+                        if "Cleaned_Date_Str" in df_exp_existing.columns: df_exp_existing = df_exp_existing.drop(columns=["Cleaned_Date_Str"])
+                        if "Cleaned_Desc_Str" in df_exp_existing.columns: df_exp_existing = df_exp_existing.drop(columns=["Cleaned_Desc_Str"])
+                        
+                        if edit_mode and selected_target_row_idx is not None:
+                            df_exp_final = df_exp_existing.drop(selected_target_row_idx)
