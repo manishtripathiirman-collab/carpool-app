@@ -7,9 +7,9 @@ import io
 import time
 import random
 
-st.set_page_config(page_title="MG Logger", page_icon="📝", layout="centered")
+st.set_page_config(page_title="MG Logger", page_icon="🚗", layout="centered")
 
-# Visual Engine: Glassmorphism Styling System
+# Visual Engine: Dark Theme Styling
 st.markdown("""
     <style>
     [data-testid="stAppViewContainer"] {
@@ -81,24 +81,23 @@ EXPENSE_URL = f"https://api.github.com/repos/{REPO}/contents/carpool_expenses.cs
 df_existing = pd.DataFrame()
 df_exp_existing = pd.DataFrame()
 
-# Diagnostic Build Engine Data Fetch
+# Secure Sync Engine
 if TOKEN and REPO:
     try:
         r = requests.get(f"{TRIP_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
         if r.status_code == 200:
             df_existing = pd.read_csv(io.StringIO(base64.b64decode(r.json()["content"]).decode("utf-8")))
         else:
-            st.error(f"🛑 GitHub Travel Logs Fetch Failure! Status Code: {r.status_code}")
+            st.error(f"🛑 GitHub Sync Offline! Status: {r.status_code}. Verify secrets deployment.")
             
         r_e = requests.get(f"{EXPENSE_URL}?cb={random.randint(1, 1000000)}", headers=HEADERS)
         if r_e.status_code == 200:
             df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
     except Exception as e:
-        st.error(f"💥 Critical Load Crash: {str(e)}")
+        st.error(f"💥 Read Fault: {str(e)}")
 
 tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
 
-# TAB 1: COMMUTE LOGGING
 with tab_trip:
     travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_norm")
 
@@ -108,7 +107,6 @@ with tab_trip:
 
     is_future_date = travel_date > today_date_ist
     
-    # Clean String Normalization Evaluation Match Check
     date_exists = False
     if not df_existing.empty and "Date" in df_existing.columns:
         target_str = travel_date.strftime("%Y-%m-%d").strip()
@@ -124,7 +122,7 @@ with tab_trip:
         time.sleep(1.5)
         st.rerun()
 
-    # THE CORE "LOUDU" INTERFACE LOCKOUT BANNER 
+    # THE ORIGINAL MESSAGING BLOCK
     elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
         st.markdown("<div class='lock-banner'><h1 style='font-size:50px;margin:0;'>🛑</h1><h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;'>Abe Loudu dubara kyun kar raha!</h2><h4 style='font-size:18px;color:#F1F5F9;font-weight:700;'>Ab mantri karega Sahi.</h4></div>", unsafe_allow_html=True)
 
@@ -181,7 +179,7 @@ with tab_trip:
                     pass
 
             if not is_valid_submission:
-                st.error("🛑 Abe Loudu, data already exists on GitHub! Refreshing page...")
+                st.error("🛑 Log alert! Entry exists. Refreshing workspace...")
                 time.sleep(2)
                 st.rerun()
             else:
@@ -224,9 +222,8 @@ with tab_trip:
                     st.session_state.disable_lock = True
                     st.rerun()
                 else:
-                    st.error(f"🛑 Save Failed! GitHub returned status: {res_put.status_code}")
+                    st.error(f"🛑 Push Terminated. Check API configurations.")
 
-# TAB 2: EXPENSE LOGGING
 with tab_expense:
     st.markdown("### 💰 Add Shared Expense")
     exp_date = st.date_input("Date of Expense", today_date_ist, key="exp_date_picker")
@@ -260,7 +257,6 @@ with tab_expense:
                     time.sleep(1.5)
                     st.rerun()
 
-# MASTER ADMIN CONTROLS INTERFACE PANEL
 st.markdown("---")
 with st.expander("🛠️ Admin Controls (Authorized Only)"):
     if not st.session_state.is_admin:
