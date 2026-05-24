@@ -8,7 +8,7 @@ import time
 
 st.set_page_config(page_title="MG Logger", page_icon="📝", layout="centered")
 
-# Visual Engine: High-Contrast Frosted Glass Container Layering
+# Visual Engine: Enhanced Stacking Layering with Deep Charcoal Input Boxes
 st.markdown("""
     <style>
     /* Main Background Engine */
@@ -20,9 +20,9 @@ st.markdown("""
         background-attachment: fixed !important;
     }
     
-    /* FIXED: Enclose the entire content block container in a sharp dark card shield */
+    /* Central Content Shield */
     .block-container {
-        background: rgba(15, 23, 42, 0.85) !important;
+        background: rgba(15, 23, 42, 0.88) !important;
         backdrop-filter: blur(16px);
         padding: 25px !important;
         border-radius: 24px;
@@ -31,38 +31,42 @@ st.markdown("""
         margin-top: 30px !important;
     }
     
-    /* Typography Engine: Crisp High-Contrast Text */
+    /* Typography Engine */
     .mobile-title { font-family: sans-serif; font-size: 28px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 20px; }
     label, p, span, h2, h3, h4 { color: #F1F5F9 !important; font-weight: 700 !important; }
     
-    /* Input Form Boxes Override Rules */
-    div[data-baseweb="select"], div[data-baseweb="base-input"], .stDateInput div { 
+    /* FIXED: Force input backgrounds to dark charcoal and text to solid white */
+    div[data-baseweb="select"], div[data-baseweb="base-input"], .stDateInput div, .stSelectbox div { 
         background-color: #1E293B !important; 
         border-radius: 12px !important; 
-        border: 1px solid rgba(255, 255, 255, 0.25) !important; 
+        border: 1px solid rgba(255, 255, 255, 0.3) !important; 
     }
-    div[data-baseweb="select"] *, div[data-baseweb="base-input"] *, .stDateInput div * { 
+    
+    /* Ensure all text values, labels, and icons inside select fields stay bright white */
+    div[data-baseweb="select"] *, div[data-baseweb="base-input"] *, .stDateInput div *, .stSelectbox div * { 
         color: #FFFFFF !important; 
     }
     
-    /* Force selectbox input item placeholder text to stay black for readability */
-    div[data-baseweb="select"] [data-user-value="true"], 
-    .stSelectbox div[data-baseweb="select"] span { 
-        color: #0F172A !important; 
-        font-weight: 800 !important;
+    /* Fix the placeholder 'Choose options' text color to stand out in light gray */
+    div[data-baseweb="select"] div div:dfn {
+        color: #94A3B8 !important;
     }
     
-    /* Dropdown Selection Lists Popovers */
-    div[role="listbox"] { background-color: #1E293B !important; border: 1px solid rgba(255,255,255,0.2) !important; }
+    /* Dropdown Option Selection List Popovers */
+    div[role="listbox"] { background-color: #1E293B !important; border: 1px solid rgba(255,255,255,0.3) !important; }
     div[role="listbox"] li { color: #FFFFFF !important; font-weight: 700 !important; }
     div[role="listbox"] li:hover { background-color: #334155 !important; }
+    
+    /* Multi-select individual passenger tags */
+    div[data-baseweb="tag"] { background-color: #334155 !important; border-radius: 6px; }
+    div[data-baseweb="tag"] span { color: #FFFFFF !important; }
     
     /* Tab Headers Structural Adjustments */
     .stTabs [data-baseweb="tab-list"] { gap: 10px; margin-bottom: 15px; }
     .stTabs [data-baseweb="tab"] { background-color: rgba(30, 41, 59, 0.9) !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 10px 10px 0px 0px; padding: 12px 24px !important; color: #94A3B8 !important; font-weight: 700; }
     .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #6366F1, #4F46E5) !important; color: white !important; border-color: #6366F1 !important; }
     
-    /* High-Vibe Button Matrix */
+    /* Button Matrix */
     div.stButton > button { width: 100%; background: linear-gradient(90deg, #6366F1, #EC4899) !important; color: white !important; border-radius: 14px; font-weight: 800; padding: 14px; border: none !important; box-shadow: 0px 4px 15px rgba(236, 72, 153, 0.4); }
     .admin-btn > div.stButton > button { background: linear-gradient(90deg, #EF4444, #DC2626) !important; box-shadow: 0px 4px 12px rgba(239, 68, 68, 0.4); }
     .back-btn > div.stButton > button { background: rgba(51, 65, 85, 0.9) !important; border: 1px solid rgba(255,255,255,0.2) !important; margin-top: 15px; box-shadow: none; }
@@ -310,4 +314,4 @@ with st.expander("🛠️ Admin Controls (Authorized Only)"):
                     st.error("🗑️ Expense record wiped out successfully!")
                     time.sleep(1.5)
                     st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=
