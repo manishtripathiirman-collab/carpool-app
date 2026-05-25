@@ -54,13 +54,6 @@ st.markdown(
     .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #6366F1, #4F46E5) !important; color: white !important; border-color: #6366F1 !important; }
     div.stButton > button { width: 100%; background: linear-gradient(90deg, #6366F1, #EC4899) !important; color: white !important; border-radius: 12px; font-weight: 800; padding: 14px; border: none !important; box-shadow: 0px 4px 15px rgba(236, 72, 153, 0.3); }
     .admin-btn > div.stButton > button { background: linear-gradient(90deg, #EF4444, #DC2626) !important; box-shadow: 0px 4px 12px rgba(239, 68, 68, 0.3); }
-    
-    .giant-lock-banner { 
-        background-color: #0F172A; border: 3px solid #EF4444; padding: 30px 20px; border-radius: 20px; text-align: center; margin-top: 15px; margin-bottom: 15px; box-shadow: 0px 0px 30px rgba(239, 68, 68, 0.4); 
-    }
-    .giant-future-banner { 
-        background-color: #0F172A; border: 3px solid #EAB308; padding: 30px 20px; border-radius: 20px; text-align: center; margin-top: 15px; margin-bottom: 15px; box-shadow: 0px 0px 30px rgba(234, 179, 8, 0.4); 
-    }
     </style>
     """, 
     unsafe_allow_html=True
@@ -109,43 +102,3 @@ if TOKEN and REPO:
         if r_e.status_code == 200:
             df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
     except Exception:
-        pass
-
-tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
-
-with tab_trip:
-    travel_date = st.date_input(
-        "Date of Travel", 
-        today_date_ist, 
-        key=f"trip_date_picker_bound_{st.session_state['reset_trigger']}"
-    )
-
-    is_future_date = travel_date > today_date_ist
-    
-    date_exists = False
-    if not df_existing.empty and "Date" in df_existing.columns:
-        t_dash = travel_date.strftime("%Y-%m-%d").strip()
-        t_slash = travel_date.strftime("%Y/%m/%d").strip()
-        df_existing["Cleaned_Date_Str"] = df_existing["Date"].astype(str).str.strip()
-        date_exists = (t_dash in df_existing["Cleaned_Date_Str"].values) or (t_slash in df_existing["Cleaned_Date_Str"].values)
-
-    if st.session_state.just_saved:
-        st.success(st.session_state.saved_message)
-        st.session_state.just_saved = False
-        time.sleep(1.5)
-        st.rerun()
-
-    commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
-    if not commuters: commuters = all_commuters
-
-    driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
-    passenger_options = [c for c in commuters if c != driver]
-    full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
-    half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
-
-    if st.button("💾 SAVE TRIP TO LEDGER", key="save_trip_ledger_btn"):
-        if is_future_date:
-            st.markdown(
-                """
-                <div class='giant-future-banner'>
-                    <h1 style='font-size:60px
