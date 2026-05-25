@@ -10,8 +10,8 @@ import urllib.parse
 
 st.set_page_config(page_title="MG Settlement", page_icon="📊", layout="centered")
 
-# Visual Engine: Pure Responsive Dark UI Reset - Pinned Viewports
-st.markdown("<style>[data-testid='stAppViewContainer'] { background-color: #0F172A !important; }</style>", unsafe_allow_html=True)
+# Visual Engine: Compressed Single Lines to Prevent Truncation Crashes Permanent Fix
+st.markdown("<style>[data-testid='stAppViewContainer'] { background-color: #0F172A !important; overflow-y: auto !important; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.block-container { background: rgba(30, 41, 59, 0.5) !important; padding: 20px !important; border-radius: 16px !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; margin-top: 10px !important; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.main-title { font-size: 24px !important; font-weight: 900; color: #FFFFFF !important; text-align: center; margin-bottom: 15px; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.section-title { font-size: 14px !important; font-weight: 800; color: #94A3B8 !important; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }</style>", unsafe_allow_html=True)
@@ -35,6 +35,7 @@ st.markdown("<style>div[data-testid='stPopover'] > button:hover { background: rg
 
 # Visual Engine: Pairwise Settlement Card Modules
 st.markdown("<style>.pairwise-card { background: linear-gradient(135deg, #1E293B, #0F172A); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; padding: 10px 14px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }</style>", unsafe_allow_html=True)
+st.markdown("<style>.pairwise-label-set { display: block; text-align: left; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.payer-info { font-size: 14px; font-weight: 800; color: #F1F5F9; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.payer-sub { font-size: 11px; font-weight: 600; color: #64748B; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.payout-pill { background: rgba(16, 185, 129, 0.12); color: #10B981; border: 1px solid #10B981; padding: 4px 10px; border-radius: 8px; font-size: 15px; font-weight: 900; }</style>", unsafe_allow_html=True)
@@ -112,30 +113,4 @@ pairwise_matrix = {payer: {payee: 0.0 for payee in all_commuters} for payer in a
 driver_counts, passenger_counts = {n: 0 for n in all_commuters}, {n: 0 for n in all_commuters}
 total_trips_logged = 0
 
-eco_coefficients = {"Manish": 0.18, "Abhishek": 0.14, "Dk": 0.09, "Ajay": 0.09, "Ankit": 0.09}
-total_carbon_offset_kg = 0.0
-
-if not df_trips.empty:
-    total_trips_logged = len(df_trips)
-    for _, row in df_trips.iterrows():
-        driver = str(row.get("Driver", "")).strip().title()
-        full_list = [p.strip().title() for p in str(row.get("Full Day Passengers", "")).split(",") if p.strip() and p.strip().lower() != 'none']
-        half_list = [p.strip().title() for p in str(row.get("Half Day Passengers", "")).split(",") if p.strip() and p.strip().lower() != 'none']
-        
-        if driver in driver_counts: driver_counts[driver] += 1
-            
-        for p in full_list:
-            if p in passenger_counts: passenger_counts[p] += 1
-            if p in all_commuters and driver in all_commuters and p != driver: pairwise_matrix[p][driver] += 300.0
-            total_carbon_offset_kg += (130.0 * eco_coefficients.get(p, 0.09))
-            
-        for p in half_list:
-            if p in passenger_counts: passenger_counts[p] += 1
-            if p in all_commuters and driver in all_commuters and p != driver: pairwise_matrix[p][driver] += 150.0
-            total_carbon_offset_kg += (130.0 * eco_coefficients.get(p, 0.09) * 0.5)
-
-if not df_expenses.empty:
-    for _, row in df_expenses.iterrows():
-        payer = str(row.get("Paid By", "")).strip().title()
-        try: total_amount = float(row.get("Total Amount", row.get("Total amount", 0.0)))
-        except: total_amount =
+eco_coefficients
