@@ -102,3 +102,148 @@ if TOKEN and REPO:
         if r_e.status_code == 200:
             df_exp_existing = pd.read_csv(io.StringIO(base64.b64decode(r_e.json()["content"]).decode("utf-8")))
     except Exception:
+        # FIXED: Added explicit pass operation statement with flawless block indentation spacing
+        pass
+
+tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
+
+with tab_trip:
+    travel_date = st.date_input(
+        "Date of Travel", 
+        today_date_ist, 
+        key=f"trip_date_picker_bound_{st.session_state['reset_trigger']}"
+    )
+
+    is_future_date = travel_date > today_date_ist
+    
+    date_exists = False
+    if not df_existing.empty and "Date" in df_existing.columns:
+        t_dash = travel_date.strftime("%Y-%m-%d").strip()
+        t_slash = travel_date.strftime("%Y/%m/%d").strip()
+        df_existing["Cleaned_Date_Str"] = df_existing["Date"].astype(str).str.strip()
+        date_exists = (t_dash in df_existing["Cleaned_Date_Str"].values) or (t_slash in df_existing["Cleaned_Date_Str"].values)
+
+    if st.session_state.just_saved:
+        st.success(st.session_state.saved_message)
+        st.session_state.just_saved = False
+        time.sleep(1.5)
+        st.rerun()
+
+    commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
+    if not commuters: commuters = all_commuters
+
+    driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
+    passenger_options = [c for c in commuters if c != driver]
+    full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
+    half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
+
+    if st.button("💾 SAVE TRIP TO LEDGER", key="save_trip_ledger_btn"):
+        if is_future_date:
+            st.error("🔮 Ye kam bhi Loudu ka hi hai. You cannot log entries for future dates.")
+            if st.button("🔙 GO BACK / RESET DATE", key="back_future_btn"):
+                st.session_state["reset_trigger"] += 1
+                st.rerun()
+                
+        elif date_exists and not st.session_state.is_admin:
+            st.warning("🛑 Abe Loudu dubara kyun kar raha! Ab mantri karega Sahi. Use Admin Suite below to adjust fields.")
+            if st.button("🔙 CHANGE TRAVEL DATE", key="back_lock_btn"):
+                st.session_state["reset_trigger"] += 1
+                st.rerun()
+        else:
+            with st.spinner("Saving commute parameters..."):
+                full_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
+                half_str = ", ".join([p.strip().title() for p in half_day]) if half_day else "None"
+                
+                new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver.strip().title(), "Full Day Passengers": full_str, "Half Day Passengers": half_str}])
+                
+                if date_exists and st.session_state.is_admin and not df_existing.empty:
+                    t_dash = travel_date.strftime("%Y-%m-%d").strip()
+                    t_slash = travel_date.strftime("%Y/%m/%d").strip()
+                    df_cleaned_base = df_existing[(df_existing["Cleaned_Date_Str"] != t_dash) & (df_existing["Cleaned_Date_Str"] != t_slash)]
+                    df_final = pd.concat([df_cleaned_base, new_row], ignore_index=True)
+                else:
+                    df_final = pd.concat([df_existing, new_row], ignore_index=True) if not df_existing.empty else new_row
+                
+                if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
+                
+                payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
+                
+                sha_query_url = f"{TRIP_URL}?cb={random.randint(1, 1000000)}"
+                r_sha = requests.get(url=sha_query_url, headers=HEADERS)
+                if r_sha.status_code == 200: payload["sha"] = r_sha.json()["sha"]
+                
+                res_put = requests.put(TRIP_URL, headers=HEADERS, json=payload)
+                if res_put.status_code in [200, 201]:
+                    st.toast(f"🚗 Commute log saved for {travel_date}!", icon="✅")
+                    st.session_state.just_saved = True
+                    st.session_state.saved_message = f"🎉 Trip saved cleanly to ledger!"
+                    st.rerun()
+                else:
+                    st.error(f"🛑 Sync Failure updating ledger file.")
+
+with tab_expense:
+    st.markdown("### 💰 Shared Expense Desk")
+    
+    edit_mode = st.checkbox("✏️ Modify Existing Entry", value=False, key="exp_edit_mode_toggle")
+    
+    exp_date = st.date_input(
+        "Date of Expense", 
+        today_date_ist, 
+        key=f"exp_date_picker_bound_{st.session_state['reset_trigger']}"
+    )
+    is_future_exp_date = exp_date > today_date_ist
+
+    if st.session_state.just_saved_exp:
+        st.success("🎉 Expense bill updated cleanly in database ledger!")
+        st.session_state.just_saved_exp = False
+        time.sleep(1.5)
+        st.rerun()
+    else:
+        default_payer = all_commuters[0]
+        default_amount = 0.0
+        default_desc = ""
+        default_shares = all_commuters
+        expense_exists = False
+        
+        t_dash_e = exp_date.strftime("%Y-%m-%d").strip()
+        t_slash_e = exp_date.strftime("%Y/%m/%d").strip()
+        
+        date_matches = pd.DataFrame(columns=["Date", "Description", "Paid By", "Total Amount", "Shared By"])
+        if not df_exp_existing.empty and "Date" in df_exp_existing.columns:
+            df_exp_existing["Cleaned_Date_Str"] = df_exp_existing["Date"].astype(str).str.strip()
+            date_matches = df_exp_existing[(df_exp_existing["Cleaned_Date_Str"] == t_dash_e) | (df_exp_existing["Cleaned_Date_Str"] == t_slash_e)]
+
+        if edit_mode:
+            if date_matches.empty:
+                st.info("ℹ️ No expenses logged on this date to modify.")
+                item_desc = ""
+            else:
+                desc_list = date_matches["Description"].tolist()
+                selected_desc = st.selectbox("Select existing description to modify:", desc_list)
+                
+                target_row = date_matches[date_matches["Description"] == selected_desc].iloc[0]
+                
+                default_payer = str(target_row.get("Paid By", all_commuters[0])).strip()
+                default_amount = float(target_row.get("Total Amount", 0.0))
+                default_desc = str(target_row.get("Description", ""))
+                
+                raw_shares = str(target_row.get("Shared By", ""))
+                default_shares = [s.strip() for s in raw_shares.split(",") if s.strip()]
+                item_desc = default_desc
+        else:
+            item_desc = st.text_input("What was this for?", value="", placeholder="e.g., Office Lunch, Turf booking, Snacks")
+
+        payer_idx = all_commuters.index(default_payer) if default_payer in all_commuters else 0
+        payer = st.selectbox("Who Paid the Bill?", all_commuters, index=payer_idx, key="exp_payer")
+        amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=default_amount, step=50.0, key="exp_amount")
+        
+        if edit_mode and item_desc:
+            st.info(f"✏️ Modifying description asset row: **{item_desc}**")
+
+        st.markdown("#### 👥 Split Amount Among Whom?")
+        selected_consumers = []
+        cols = st.columns(len(all_commuters))
+        for idx, person in enumerate(all_commuters):
+            with cols[idx]:
+                is_checked = person in default_shares if edit_mode else True
+                if st.checkbox(person, value=is_checked, key=
