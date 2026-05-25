@@ -8,9 +8,13 @@ import time
 import random
 import urllib.parse
 
-st.set_page_config(page_title="MG Settlement", page_icon="📊", layout="centered")
+st.set_page_config(
+    page_title="MG Settlement",
+    page_icon="📊",
+    layout="centered"
+)
 
-# Visual Engine: Compressed Single Lines to Prevent Truncation Crashes
+# --- CSS INJECTION LINES ---
 st.markdown("<style>[data-testid='stAppViewContainer'] { background-color: #0F172A !important; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.block-container { background: rgba(30, 41, 59, 0.5) !important; padding: 20px !important; border-radius: 16px !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; margin-top: 10px !important; margin-bottom: 20px !important; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.main-title { font-size: 24px !important; font-weight: 900; color: #FFFFFF !important; text-align: center; margin-bottom: 15px; }</style>", unsafe_allow_html=True)
@@ -39,15 +43,19 @@ st.markdown("<style>.stTabs [data-baseweb='tab'] { padding: 8px 16px !important;
 
 st.markdown('<p class="main-title">💰 MG Settlement Desk</p>', unsafe_allow_html=True)
 
+# --- CORE PARAMETERS ---
 all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
-eco_coefficients = {"Manish": 0.18, "Abhishek": 0.14, "Dk": 0.09, "Ajay": 0.09, "Ankit": 0.09}
+eco_coefficients = {
+    "Manish": 0.18,
+    "Abhishek": 0.14,
+    "Dk": 0.09,
+    "Ajay": 0.09,
+    "Ankit": 0.09
+}
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
 REPO = st.secrets.get("GITHUB_REPO", "").strip()
-HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json", "Cache-Control": "no-cache"}
-
-URL_PREFIX = "https://api.github.com/repos/"
-TRIP_URL = URL_PREFIX + REPO + "/contents/carpool_logs.csv"
-EXPENSE_URL = URL_PREFIX + REPO + "/contents/carpool_expenses.csv"
-
-df_trips_
+HEADERS = {
+    "Authorization": f"token {TOKEN}",
+    "Accept": "application/vnd.github.v3+json",
+    "Cache-Control": "
