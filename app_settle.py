@@ -10,7 +10,7 @@ import urllib.parse
 
 st.set_page_config(page_title="MG Settlement", page_icon="📊", layout="centered")
 
-# Visual Engine: Pure Dark Layout - Shortened CSS Blocks to Stop Clipping Crashes
+# Visual Engine: Pure Dark Layout - Block 1 (App Container & Layout Frame)
 st.markdown(
     """
     <style>
@@ -24,8 +24,15 @@ st.markdown(
     }
     .main-title { font-size: 22px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 2px; text-align: center; }
     .section-title { font-size: 15px !important; font-weight: 800; color: #94A3B8 !important; margin-top: 12px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-    
-    /* Stats Layout */
+    </style>
+    """, 
+    unsafe_allow_html=True
+)
+
+# Visual Engine: Pure Dark Layout - Block 2 (Scorecards Matrix Layout)
+st.markdown(
+    """
+    <style>
     .scorecard-row { display: flex; gap: 8px; margin-bottom: 5px; }
     .scorecard-box {
         flex: 1; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.05);
@@ -34,14 +41,14 @@ st.markdown(
     .scorecard-label { font-size: 10px; font-weight: 800; color: #64748B; text-transform: uppercase; }
     .scorecard-val { font-size: 14px; font-weight: 800; color: #F1F5F9; margin-top: 2px; }
     </style>
-    """, 
+    """,
     unsafe_allow_html=True
 )
 
+# Visual Engine: Pure Dark Layout - Block 3 (Emerald Sustainability Badge Layout)
 st.markdown(
     """
     <style>
-    /* Emerald Sustainability Card */
     .eco-flex-card {
         background: linear-gradient(135deg, #064E3B, #022C22);
         border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 14px; 
@@ -55,8 +62,15 @@ st.markdown(
     .eco-metric-num { font-size: 28px !important; font-weight: 900 !important; color: #FFFFFF !important; line-height: 1; }
     .eco-metric-unit { font-size: 14px !important; color: #A7F3D0 !important; font-weight: 600; }
     .eco-sub-text { font-size: 12px !important; color: #D1FAE5 !important; font-weight: 500; margin-top: 4px; margin-bottom: 12px; opacity: 0.85; }
-    
-    /* Popover Options Layout */
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Visual Engine: Pure Dark Layout - Block 4 (Interactive Popover Buttons)
+st.markdown(
+    """
+    <style>
     div[data-testid="stPopover"] > button {
         background: rgba(52, 211, 153, 0.15) !important; color: #34D399 !important;
         border: 1px solid rgba(52, 211, 153, 0.3) !important; padding: 4px 12px !important; 
@@ -69,10 +83,10 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# Visual Engine: Pure Dark Layout - Block 5 (Pairwise Transaction Payout Cards)
 st.markdown(
     """
     <style>
-    /* Pairwise Grid Layout Elements */
     .pairwise-card {
         background: linear-gradient(135deg, #1E293B, #0F172A);
         border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px;
@@ -90,4 +104,28 @@ st.markdown(
     }
     .whatsapp-btn:hover { background: #059669; text-decoration: none !important; }
     .stTabs [data-baseweb="tab-list"] { gap: 4px; }
-    .stTabs [data-baseweb="tab"] { padding
+    .stTabs [data-baseweb="tab"] { padding: 6px 12px !important; font-size: 13px !important; }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+st.markdown('<p class="main-title">💰 MG Settlement Desk</p>', unsafe_allow_html=True)
+
+all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
+
+TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
+REPO = st.secrets.get("GITHUB_REPO", "").strip()
+
+HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json", "Cache-Control": "no-cache"}
+
+BASE_URL = f"https://api.github.com/repos/{REPO}/contents"
+TRIP_URL = f"{BASE_URL}/carpool_logs.csv"
+EXPENSE_URL = f"{BASE_URL}/carpool_expenses.csv"
+
+df_trips_raw = pd.DataFrame()
+df_expenses_raw = pd.DataFrame()
+
+if TOKEN and REPO:
+    try:
+        r = requests.get(f"{TRIP_URL}?cb={random.randint(1,
