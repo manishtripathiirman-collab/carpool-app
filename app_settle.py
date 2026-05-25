@@ -119,13 +119,4 @@ REPO = st.secrets.get("GITHUB_REPO", "").strip()
 
 HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json", "Cache-Control": "no-cache"}
 
-BASE_URL = f"https://api.github.com/repos/{REPO}/contents"
-TRIP_URL = f"{BASE_URL}/carpool_logs.csv"
-EXPENSE_URL = f"{BASE_URL}/carpool_expenses.csv"
-
-df_trips_raw = pd.DataFrame()
-df_expenses_raw = pd.DataFrame()
-
-if TOKEN and REPO:
-    try:
-        r = requests.get(f"{TRIP_URL}?cb={random.randint(1,
+BASE_URL = f"
