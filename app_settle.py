@@ -65,7 +65,6 @@ if REPO:
     df_t_raw = parse_repo_csv(TRIP_URL + cb)
     df_e_raw = parse_repo_csv(EXP_URL + cb)
 
-# --- FIXED: LIVE NETWORK FAILSAFE SEED BALANCES ---
 if df_t_raw.empty:
     mock_dates = [datetime.date(2026, 5, 18 + i) for i in range(5)]
     df_t_raw = pd.DataFrame({
@@ -110,11 +109,12 @@ elif w_sel == p_wk:
     st_w = pd.to_datetime("2026-05-18")
     en_w = pd.to_datetime("2026-05-24")
 
+# FIXED: Corrected start_w variable mappings to prevent NameErrors inside calculations
 if w_sel in [c_wk, p_wk]:
     if not df_t.empty:
         df_t = df_t[(df_t["Date"] >= st_w) & (df_t["Date"] <= en_w)]
     if not df_e.empty:
-        df_e = df_e[(df_e["Date"] >= start_w) & (df_e["Date"] <= en_w)]
+        df_e = df_e[(df_e["Date"] >= st_w) & (df_e["Date"] <= en_w)]
 
 # --- CALCULATION ENGINE ---
 mat = {p1: {p2: 0.0 for p2 in names} for p1 in names}
@@ -196,7 +196,7 @@ score_html = f"""
     </div>
 </div>
 """
-st.markdown(scorecards_html if 'scorecards_html' in locals() else score_html, unsafe_allow_html=True)
+st.markdown(score_html, unsafe_allow_html=True)
 
 tab_p, tab_r = st.tabs(["💵 Payouts", "📋 History"])
 
@@ -250,19 +250,4 @@ with tab_p:
         st.write("- **Others (CNG):** `0.09 kg/KM`")
 
 with tab_r:
-    st.markdown('<p class="section-title">📊 Historical Ledger</p>', unsafe_allow_html=True)
-    with st.expander("🚗 View Daily Trip Logs", expanded=True):
-        if not df_t.empty:
-            df_disp = df_t.copy()
-            df_disp["Date"] = df_disp["Date"].dt.strftime('%Y-%m-%d')
-            st.dataframe(df_disp.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
-        else:
-            st.info("No active ride logs found.")
-            
-    with st.expander("💰 View Shared Expense Bills", expanded=False):
-        if not df_e.empty:
-            df_edisp = df_e.copy()
-            df_edisp["Date"] = df_edisp["Date"].dt.strftime('%Y-%m-%d')
-            st.dataframe(df_edisp.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
-        else:
-            st.info("No active bill logs found.")
+    st.markdown('<p class="section-title">
