@@ -22,7 +22,7 @@ st.markdown(
         padding: 15px !important; 
         border-radius: 16px !important; 
         border: 1px solid rgba(255, 255, 255, 0.08) !important; 
-        margin-top: 40px !important;
+        margin-top: 35px !important;
         margin-bottom: 30px !important;
     }
     .main-title { font-size: 22px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 2px; text-align: center; }
@@ -58,7 +58,6 @@ st.markdown(
     }
     .whatsapp-btn:hover { background: #059669; text-decoration: none !important; }
     
-    /* Minimize widget padding */
     .stTabs [data-baseweb="tab-list"] { gap: 4px; }
     .stTabs [data-baseweb="tab"] { padding: 6px 12px !important; font-size: 13px !important; }
     </style>
@@ -66,7 +65,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Regular hyphen-dash with ultra-small lowercase mantri signature
 st.markdown('<p class="main-title">💰 MG Settlement Desk - <span style="font-size: 10px; font-weight: 400; color: #64748B; text-transform: lowercase; vertical-align: middle;">mantri</span></p>', unsafe_allow_html=True)
 
 all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
@@ -101,7 +99,6 @@ if not df_expenses.empty:
 
 st.markdown('<p class="section-title">📅 Settlement Week</p>', unsafe_allow_html=True)
 
-# Dynamic Time Window Math
 utc_now = datetime.datetime.utcnow()
 ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
 today = ist_now.date()
@@ -131,19 +128,15 @@ elif selected_window == past_week_str:
     if not df_expenses.empty:
         df_expenses = df_expenses[(df_expenses["Date"] >= start_w) & (df_expenses["Date"] <= end_w)]
 
-# --- MATRIX LOGIC CORE ---
+# --- FIXED LOGIC: DIRECT PERSON-TO-PERSON DEBT MATRIX ---
+# Initialize matrix for tracking person A owes person B
+pairwise_matrix = {payer: {payee: 0.0 for payee in all_commuters} for payer in all_commuters}
+
 driver_counts = {name: 0 for name in all_commuters}
 passenger_counts = {name: 0 for name in all_commuters}
 total_trips_logged = 0
-balances = {name: 0.0 for name in all_commuters}
 
-eco_saved_footprint = {
-    "Manish": 130 * 0.16,     
-    "Abhishek": 130 * 0.13,   
-    "Dk": 130 * 0.09,         
-    "Ajay": 130 * 0.09,       
-    "Ankit": 130 * 0.09       
-}
+eco_saved_footprint = {"Manish": 130*0.16, "Abhishek": 130*0.13, "Dk": 130*0.09, "Ajay": 130*0.09, "Ankit": 130*0.09}
 total_carbon_offset_kg = 0.0
 
 if not df_trips.empty:
@@ -153,17 +146,19 @@ if not df_trips.empty:
         full_list = [p.strip().title() for p in str(row.get("Full Day Passengers", "")).split(",") if p.strip() and p.strip().lower() != 'none']
         half_list = [p.strip().title() for p in str(row.get("Half Day Passengers", "")).split(",") if p.strip() and p.strip().lower() != 'none']
         
-        if driver in driver_counts: driver_counts[driver] += 1
+        if driver in driver_counts: 
+            driver_counts[driver] += 1
             
         for p in full_list:
             if p in passenger_counts: passenger_counts[p] += 1
-            if p in balances: balances[p] -= 300.0
-            if driver in balances: balances[driver] += 300.0
+            if p in all_commuters and driver in all_commuters and p != driver:
+                pairwise_matrix[p][driver] += 300.0  # Passenger pays Driver ₹300 directly
             if p in eco_saved_footprint: total_carbon_offset_kg += eco_saved_footprint[p]
             
         for p in half_list:
             if p in passenger_counts: passenger_counts[p] += 1
-            if p in balances: balances[p] -= 150.0; balances[driver] += 150.0
+            if p in all_commuters and driver in all_commuters and p != driver:
+                pairwise_matrix[p][driver] += 150.0  # Half-day Passenger pays Driver ₹150 directly
             if p in eco_saved_footprint: total_carbon_offset_kg += (eco_saved_footprint[p] * 0.5)
 
 if not df_expenses.empty:
@@ -176,8 +171,29 @@ if not df_expenses.empty:
         if total_amount > 0 and len(consumer_list) > 0:
             per_person_cost = round(total_amount / len(consumer_list), 2)
             for p in consumer_list:
-                if p in balances: balances[p] -= per_person_cost
-            if payer in balances: balances[payer] += total_amount
+                if p in all_commuters and payer in all_commuters and p != payer:
+                    pairwise_matrix[p][payer] += per_person_cost  # Consumer owes Payer their split share
+
+# Mutual Netting Loop between exact pairings (If A owes B ₹300 and B owes A ₹300, it becomes ₹0)
+final_settlements = []
+processed_pairs = set()
+
+for p1 in all_commuters:
+    for p2 in all_commuters:
+        if p1 != p2 and (p1, p2) not in processed_pairs and (p2, p1) not in processed_pairs:
+            processed_pairs.add((p1, p2))
+            
+            p1_owes_p2 = pairwise_matrix[p1][p2]
+            p2_owes_p1 = pairwise_matrix[p2][p1]
+            
+            if p1_owes_p2 > p2_owes_p1:
+                net_debt = round(p1_owes_p2 - p2_owes_p1, 2)
+                if net_debt > 0.01:
+                    final_settlements.append((p1, p2, net_debt))
+            elif p2_owes_p1 > p1_owes_p2:
+                net_debt = round(p2_owes_p1 - p1_owes_p2, 2)
+                if net_debt > 0.01:
+                    final_settlements.append((p2, p1, net_debt))
 
 # Performance Scorecards Row
 st.markdown('<p class="section-title">⚡ Weekly Stats</p>', unsafe_allow_html=True)
@@ -203,37 +219,20 @@ st.markdown(
 tab_payout, tab_raw = st.tabs(["💵 Payouts", "📋 History"])
 
 with tab_payout:
-    st.markdown('<p class="section-title">💎 Net Pairwise Settlements</p>', unsafe_allow_html=True)
+    st.markdown('<p class="section-title">💎 Direct Pairwise Settlements</p>', unsafe_allow_html=True)
     
-    debtors = []
-    creditors = []
-    for person, bal in balances.items():
-        if bal < -0.01: debtors.append([person, abs(bal)])
-        elif bal > 0.01: creditors.append([person, bal])
-            
-    pairwise_txs = []
-    d_idx, c_idx = 0, 0
-    while d_idx < len(debtors) and c_idx < len(creditors):
-        d_name, d_amt = debtors[d_idx]
-        c_name, c_amt = creditors[c_idx]
-        settled_amt = min(d_amt, c_amt)
-        pairwise_txs.append((d_name, c_name, round(settled_amt, 2)))
-        debtors[d_idx][1] -= settled_amt
-        creditors[c_idx][1] -= settled_amt
-        if debtors[d_idx][1] < 0.01: d_idx += 1
-        if creditors[c_idx][1] < 0.01: c_idx += 1
-
-    # Text Generator
     whatsapp_lines = ["*🚗 Carpool Settlement Summary*", "-------------------------------------"]
-    if not pairwise_txs:
+    if not final_settlements:
         st.info("Balances are fully zeroed out!")
     else:
-        for deb, cred, amt in pairwise_txs:
+        # Sort settlements so largest payments show first
+        final_settlements.sort(key=lambda x: x[2], reverse=True)
+        for deb, cred, amt in final_settlements:
             st.markdown(f'<div class="pairwise-card"><div><div class="payer-info">👉 {deb}</div><div class="payer-sub">Pays directly to <b>{cred}</b></div></div><div class="payout-pill">₹{amt:,.0f}</div></div>', unsafe_allow_html=True)
             whatsapp_lines.append(f"👉 *{deb}* pays *{cred}*:  *₹{amt:.0f}*")
             
     whatsapp_lines.append("-------------------------------------")
-    whatsapp_lines.append("💡 _Calculated via direct netting loops._")
+    whatsapp_lines.append("💡 _Calculated via strict per-ride passenger-driver isolation._")
     whatsapp_text_raw = "\n".join(whatsapp_lines)
 
     st.markdown('<p class="section-title">🟢 Output Code</p>', unsafe_allow_html=True)
@@ -241,7 +240,6 @@ with tab_payout:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Direct Share Link
     encoded_message = urllib.parse.quote(whatsapp_text_raw)
     whatsapp_link_html = f"""
     <a href="https://api.whatsapp.com/send?text={encoded_message}" target="_blank" class="whatsapp-btn">
@@ -254,13 +252,11 @@ with tab_payout:
     tree_days_saved = int(total_carbon_offset_kg / 0.06)
     eco_cols = st.columns(2)
     with eco_cols[0]:
-        # FIXED: Sealed the f-string formatting safely on a single line
         st.metric("Avoided Footprint", f"{total_carbon_offset_kg:.1f} kg CO₂")
     with eco_cols[1]:
         st.metric("Equivalency Scale", f"{tree_days_saved} Tree-Days")
 
 with tab_raw:
-    # Clickable dropdown to see the dynamic daily trip logs
     with st.expander("🚗 View Daily Trip Logs"):
         if not df_trips.empty:
             df_trips_display = df_trips.copy()
