@@ -10,7 +10,7 @@ import urllib.parse
 
 st.set_page_config(page_title="MG Settlement", page_icon="📊", layout="centered")
 
-# Visual Engine: Pure Responsive Dark UI Reset - Keeps layout pinned on viewport screen
+# Visual Engine: Pure Responsive Dark UI Reset - Pinned Viewports
 st.markdown("<style>[data-testid='stAppViewContainer'] { background-color: #0F172A !important; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.block-container { background: rgba(30, 41, 59, 0.5) !important; padding: 20px !important; border-radius: 16px !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; margin-top: 10px !important; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.main-title { font-size: 24px !important; font-weight: 900; color: #FFFFFF !important; text-align: center; margin-bottom: 15px; }</style>", unsafe_allow_html=True)
@@ -78,4 +78,64 @@ if TOKEN and REPO:
     except Exception: pass
 
 df_trips = df_trips_raw.copy()
-df
+df_expenses = df_expenses_raw.copy()
+
+if not df_trips.empty: df_trips["Date"] = pd.to_datetime(df_trips["Date"], errors='coerce')
+if not df_expenses.empty: df_expenses["Date"] = pd.to_datetime(df_expenses["Date"], errors='coerce')
+
+st.markdown('<p class="section-title">📅 Settlement Week</p>', unsafe_allow_html=True)
+
+utc_now = datetime.datetime.utcnow()
+ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
+today = ist_now.date()
+
+days_since_monday = today.weekday()
+current_monday = today - datetime.timedelta(days=days_since_monday)
+current_friday = current_monday + datetime.timedelta(days=4)
+
+current_week_str = f"Current Week ({current_monday.strftime('%d %b')} - {current_friday.strftime('%d %b %Y')})"
+past_week_str = "Week 21 (18 May - 22 May 2026)"
+
+week_options = [current_week_str, past_week_str, "All Time Logs Cumulative"]
+selected_window = st.selectbox("Choose Billing Week Window:", week_options, label_visibility="collapsed")
+
+if selected_window == current_week_str:
+    start_w, end_w = pd.to_datetime(current_monday), pd.to_datetime(current_friday) + datetime.timedelta(days=2)
+elif selected_window == past_week_str:
+    start_w, end_w = pd.to_datetime("2026-05-18"), pd.to_datetime("2026-05-24")
+
+if selected_window in [current_week_str, past_week_str]:
+    if not df_trips.empty: df_trips = df_trips[(df_trips["Date"] >= start_w) & (df_trips["Date"] <= end_w)]
+    if not df_expenses.empty: df_expenses = df_expenses[(df_expenses["Date"] >= start_w) & (df_expenses["Date"] <= end_w)]
+
+pairwise_matrix = {payer: {payee: 0.0 for payee in all_commuters} for payer in all_commuters}
+driver_counts, passenger_counts = {n: 0 for n in all_commuters}, {n: 0 for n in all_commuters}
+total_trips_logged = 0
+
+eco_coefficients = {"Manish": 0.18, "Abhishek": 0.14, "Dk": 0.09, "Ajay": 0.09, "Ankit": 0.09}
+total_carbon_offset_kg = 0.0
+
+if not df_trips.empty:
+    total_trips_logged = len(df_trips)
+    for _, row in df_trips.iterrows():
+        driver = str(row.get("Driver", "")).strip().title()
+        full_list = [p.strip().title() for p in str(row.get("Full Day Passengers", "")).split(",") if p.strip() and p.strip().lower() != 'none']
+        half_list = [p.strip().title() for p in str(row.get("Half Day Passengers", "")).split(",") if p.strip() and p.strip().lower() != 'none']
+        
+        if driver in driver_counts: driver_counts[driver] += 1
+            
+        for p in full_list:
+            if p in passenger_counts: passenger_counts[p] += 1
+            if p in all_commuters and driver in all_commuters and p != driver: pairwise_matrix[p][driver] += 300.0
+            total_carbon_offset_kg += (130.0 * eco_coefficients.get(p, 0.09))
+            
+        for p in half_list:
+            if p in passenger_counts: passenger_counts[p] += 1
+            if p in all_commuters and driver in all_commuters and p != driver: pairwise_matrix[p][driver] += 150.0
+            total_carbon_offset_kg += (130.0 * eco_coefficients.get(p, 0.09) * 0.5)
+
+if not df_expenses.empty:
+    for _, row in df_expenses.iterrows():
+        payer = str(row.get("Paid By", "")).strip().title()
+        try: total_amount = float(row.get("Total Amount", row.get("Total amount", 0.0)))
+        except: total_amount =
