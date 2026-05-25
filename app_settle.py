@@ -99,24 +99,4 @@ st.markdown(
     .whatsapp-box { background: #151F32; border-radius: 10px; padding: 10px; border-left: 3px solid #10B981; font-family: monospace; font-size: 11px; color: #E2E8F0; }
     .whatsapp-btn {
         display: block; text-align: center; width: 100%; background: #10B981;
-        color: white !important; border-radius: 10px; font-weight: 800; padding: 10px; text-decoration: none !important;
-        font-size: 14px; box-shadow: 0px 3px 10px rgba(16, 185, 129, 0.2);
-    }
-    .whatsapp-btn:hover { background: #059669; text-decoration: none !important; }
-    .stTabs [data-baseweb="tab-list"] { gap: 4px; }
-    .stTabs [data-baseweb="tab"] { padding: 6px 12px !important; font-size: 13px !important; }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-st.markdown('<p class="main-title">💰 MG Settlement Desk</p>', unsafe_allow_html=True)
-
-all_commuters = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
-
-TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
-REPO = st.secrets.get("GITHUB_REPO", "").strip()
-
-HEADERS = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github.v3+json", "Cache-Control": "no-cache"}
-
-BASE_URL = f"
+        color: white !important; border-radius: 10px; font-weight: 800; padding: 10px; text-decoration: none !
