@@ -32,8 +32,10 @@ st.markdown("<style>.payer-info { font-size: 14px; font-weight: 800; color: #F1F
 st.markdown("<style>.payer-sub { font-size: 11px; font-weight: 600; color: #64748B; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.payout-pill { background: rgba(16, 185, 129, 0.12); color: #10B981; border: 1px solid #10B981; padding: 4px 10px; border-radius: 8px; font-size: 15px; font-weight: 900; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.whatsapp-box { background: #151F32; border-radius: 10px; padding: 10px; border-left: 3px solid #10B981; font-family: monospace; font-size: 11px; color: #E2E8F0; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.whatsapp-btn { display: block; text-align: center; width: 100%; background: #10B981; color: white !important; border-radius: 10px; font-weight: 800; padding: 12px; text-decoration: none !important; font-size: 14px; font-family: sans-serif; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.whatsapp-btn:hover { background: #059669; text-decoration: none !important; }</style>", unsafe_allow_html=True)
+
+# Custom Style Rules for Pinned Share Link Action Elements
+st.markdown("<style>div.stLinkButton > a { width: 100% !important; background: #10B981 !important; color: white !important; border-radius: 10px !important; font-weight: 800 !important; padding: 12px !important; text-align: center !important; text-decoration: none !important; border: none !important; }</style>", unsafe_allow_html=True)
+st.markdown("<style>div.stLinkButton > a:hover { background: #059669 !important; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.stTabs [data-baseweb='tab-list'] { gap: 4px; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.stTabs [data-baseweb='tab'] { padding: 6px 12px !important; font-size: 13px !important; }</style>", unsafe_allow_html=True)
 
@@ -161,7 +163,4 @@ with tab_payout:
     whatsapp_lines.extend(["-------------------------------------", "💡 _Calculated via strict per-ride passenger-driver isolation._"])
     whatsapp_text_raw = "\n".join(whatsapp_lines)
 
-    st.markdown('<p class="section-title">🟢 Output Code</p>', unsafe_allow_html=True)
-    st.markdown(f'<div class="whatsapp-box">{whatsapp_text_raw.replace("\n", "<br>")}</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(f'<a href="
+    st.markdown('<p class="section-title">🟢 Output Code</p>',
