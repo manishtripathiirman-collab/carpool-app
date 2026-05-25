@@ -33,7 +33,6 @@ st.markdown("<style>.payer-sub { font-size: 11px; font-weight: 600; color: #6474
 st.markdown("<style>.payout-pill { background: rgba(16, 185, 129, 0.12); color: #10B981; border: 1px solid #10B981; padding: 4px 10px; border-radius: 8px; font-size: 15px; font-weight: 900; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.whatsapp-box { background: #151F32; border-radius: 10px; padding: 10px; border-left: 3px solid #10B981; font-family: monospace; font-size: 11px; color: #E2E8F0; }</style>", unsafe_allow_html=True)
 
-# Custom Style Rules for Pinned Share Link Action Elements
 st.markdown("<style>div.stLinkButton > a { width: 100% !important; background: #10B981 !important; color: white !important; border-radius: 10px !important; font-weight: 800 !important; padding: 12px !important; text-align: center !important; text-decoration: none !important; border: none !important; }</style>", unsafe_allow_html=True)
 st.markdown("<style>div.stLinkButton > a:hover { background: #059669 !important; }</style>", unsafe_allow_html=True)
 st.markdown("<style>.stTabs [data-baseweb='tab-list'] { gap: 4px; }</style>", unsafe_allow_html=True)
@@ -149,7 +148,7 @@ st.markdown(f'<div class="scorecard-row"><div class="scorecard-box"><div class="
 tab_payout, tab_raw = st.tabs(["💵 Payouts", "📋 History"])
 
 with tab_payout:
-    st.markdown('<p class="section-title">💎 Direct Pairwise Settlements</p>', unsafe_allow_html=True)
+    st.markdown("### 💎 Direct Pairwise Settlements")
     whatsapp_lines = ["*🚗 Carpool Settlement Summary*", "-------------------------------------"]
     
     if not final_settlements:
@@ -163,4 +162,31 @@ with tab_payout:
     whatsapp_lines.extend(["-------------------------------------", "💡 _Calculated via strict per-ride passenger-driver isolation._"])
     whatsapp_text_raw = "\n".join(whatsapp_lines)
 
-    st.markdown('<p class="section-title">🟢 Output Code</p>',
+    # FIXED: Shortened line code below to protect against margin copy-paste truncation errors
+    st.write("**🟢 Output Code**")
+    st.markdown(f'<div class="whatsapp-box">{whatsapp_text_raw.replace("\n", "<br>")}</div>', unsafe_allow_html=True)
+    st.write("")
+    
+    msg_url_encoded = urllib.parse.quote(whatsapp_text_raw)
+    st.link_button("💬 SHARE DIRECT TO WHATSAPP", f"https://api.whatsapp.com/send?text={msg_url_encoded}")
+
+    tree_days_saved = int(total_carbon_offset_kg / 0.06)
+    st.markdown(f'<div class="eco-flex-card"><div class="eco-flex-title">🌱 MG Eco Impact Profile</div><div class="eco-metric-num">{total_carbon_offset_kg:,.1f} <span class="eco-metric-unit">kg CO₂ Avoided</span></div><div class="eco-sub-text">Equivalent to saving <b>{tree_days_saved:,} Tree-Days</b> of carbon absorption!</div></div>', unsafe_allow_html=True)
+    
+    with st.popover("📋 View Calculation Basis"):
+        st.write("**Methodology:** 130 KM baseline per ride tracker.")
+        st.write("- **Manish:** BS4 Diesel Engine $\\rightarrow$ `0.18 kg/KM`")
+        st.write("- **Abhishek:** BS6 Diesel Engine $\\rightarrow$ `0.14 kg/KM`")
+        st.write("- **Others (Dk, Ajay, Ankit):** CNG Configuration $\\rightarrow$ `0.09 kg/KM`")
+
+with tab_raw:
+    with st.expander("🚗 View Daily Trip Logs"):
+        if not df_trips.empty:
+            df_trips_display = df_trips.copy()
+            df_trips_display["Date"] = df_trips_display["Date"].dt.strftime('%Y-%m-%d')
+            st.dataframe(df_trips_display.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
+    with st.expander("💰 View Shared Expense Bills"):
+        if not df_expenses.empty:
+            df_expenses_display = df_expenses.copy()
+            df_expenses_display["Date"] = df_expenses_display["Date"].dt.strftime('%Y-%m-%d')
+            st.dataframe(df_expenses_display.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
