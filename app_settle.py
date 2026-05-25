@@ -8,33 +8,15 @@ import time
 import random
 import urllib.parse
 
+# Pure native config
 st.set_page_config(
     page_title="MG",
     layout="centered"
 )
 
-# --- VERBOSE SHORT CSS ENGINE ---
-st.markdown("<style>[data-testid='stAppViewContainer'] { background-color: #0F172A !important; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.block-container { background: rgba(30,41,59,0.5) !important; padding: 20px !important; border-radius: 16px !important; border: 1px solid rgba(255,255,255,0.08) !important; margin-top: 10px !important; margin-bottom: 20px !important; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.main-title { font-size: 24px !important; font-weight: 900; color: #FFFFFF !important; text-align: center; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.section-title { font-size: 14px !important; font-weight: 800; color: #94A3B8 !important; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.scorecard-row { display: flex; gap: 10px; width: 100%; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.scorecard-box { flex: 1; background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 12px; text-align: center; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.scorecard-label { font-size: 11px; font-weight: 800; color: #64748B; text-transform: uppercase; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.scorecard-val { font-size: 14px; font-weight: 800; color: #F1F5F9; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.eco-flex-card { background: linear-gradient(135deg,#064E3B,#022C22); border: 1px solid rgba(16,185,129,0.2); border-radius: 14px; padding: 16px; width: 100%; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.eco-flex-title { font-size: 12px !important; font-weight: 800; color: #34D399 !important; text-transform: uppercase; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.eco-metric-num { font-size: 26px !important; font-weight: 900; color: #FFFFFF; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.eco-sub-text { font-size: 11px !important; color: #D1FAE5; opacity: 0.85; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.pairwise-card { background: linear-gradient(135deg,#1E293B,#0F172A); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center; width: 100%; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.payer-info { font-size: 14px; font-weight: 800; color: #F1F5F9; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.payout-pill { background: rgba(16,185,129,0.12); color: #10B981; border: 1px solid #10B981; padding: 4px 10px; border-radius: 8px; font-size: 14px; font-weight: 900; }</style>", unsafe_allow_html=True)
-st.markdown("<style>.whatsapp-box { background: #151F32; border-radius: 10px; padding: 12px; border-left: 3px solid #10B981; font-family: monospace; color: #E2E8F0; }</style>", unsafe_allow_html=True)
-st.markdown("<style>div.stLinkButton > a { width: 100% !important; background: #10B981 !important; color: white !important; border-radius: 10px !important; font-weight: 800 !important; padding: 12px !important; text-align: center; display: block !important; }</style>", unsafe_allow_html=True)
+st.title("💰 MG Settlement Desk")
 
-st.markdown('<p class="main-title">💰 MG Settlement Desk</p>', unsafe_allow_html=True)
-
-# --- REPO DATA EXTRACTOR ---
+# --- DATA REPO PARSER ---
 def parse_repo_csv(url):
     try:
         res = requests.get(url)
@@ -47,9 +29,15 @@ def parse_repo_csv(url):
         pass
     return pd.DataFrame()
 
-# --- CONFIG MATRIX ---
+# --- NAMES CONFIG ---
 names = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
-eco_co = {"Manish": 0.18, "Abhishek": 0.14, "Dk": 0.09, "Ajay": 0.09, "Ankit": 0.09}
+eco_co = {
+    "Manish": 0.18,
+    "Abhishek": 0.14,
+    "Dk": 0.09,
+    "Ajay": 0.09,
+    "Ankit": 0.09
+}
 
 REPO = st.secrets.get("GITHUB_REPO", "").strip()
 
@@ -81,8 +69,8 @@ df_t["Date"] = pd.to_datetime(df_t["Date"], errors='coerce')
 if not df_e.empty:
     df_e["Date"] = pd.to_datetime(df_e["Date"], errors='coerce')
 
-# --- TIMELINE SETUP ---
-st.markdown('<p class="section-title">📅 Settlement Week</p>', unsafe_allow_html=True)
+# --- TIMELINE CONTROLS ---
+st.subheader("📅 Settlement Week")
 u_now = datetime.datetime.utcnow()
 ist = u_now + datetime.timedelta(hours=5, minutes=30)
 tday = ist.date()
@@ -109,14 +97,13 @@ elif w_sel == p_wk:
     st_w = pd.to_datetime("2026-05-18")
     en_w = pd.to_datetime("2026-05-24")
 
-# FIXED: Corrected start_w variable mappings to prevent NameErrors inside calculations
 if w_sel in [c_wk, p_wk]:
     if not df_t.empty:
         df_t = df_t[(df_t["Date"] >= st_w) & (df_t["Date"] <= en_w)]
     if not df_e.empty:
         df_e = df_e[(df_e["Date"] >= st_w) & (df_e["Date"] <= en_w)]
 
-# --- CALCULATION ENGINE ---
+# --- ENGINE ---
 mat = {p1: {p2: 0.0 for p2 in names} for p1 in names}
 d_cnt = {n: 0 for n in names}
 p_cnt = {n: 0 for n in names}
@@ -161,7 +148,7 @@ if not df_e.empty:
             for p in c_lst:
                 if p in names and pyr in names and p != pyr: mat[p][pyr] += p_cost
 
-# --- BALANCES DIRECT NETTING ---
+# --- NETTING ---
 settles = []
 done_pairs = set()
 
@@ -179,29 +166,21 @@ for p1 in names:
                 df_val = ow2 - ow1
                 if df_val > 0.01: settles.append((p2, p1, round(df_val, 2)))
 
-# --- PANEL UI DISPLAY ---
-st.markdown('<p class="section-title">⚡ Weekly Stats</p>', unsafe_allow_html=True)
+# --- DISPLAY ---
+st.subheader("⚡ Weekly Stats")
 top_d = max(d_cnt, key=d_cnt.get) if t_trips > 0 else "None"
 top_p = max(p_cnt, key=p_cnt.get) if t_trips > 0 else "None"
 
-score_html = f"""
-<div class="scorecard-row">
-    <div class="scorecard-box">
-        <div class="scorecard-label">👑 King of Wheel</div>
-        <div class="scorecard-val">{top_d} ({d_cnt.get(top_d,0)} Days)</div>
-    </div>
-    <div class="scorecard-box">
-        <div class="scorecard-label">🎒 Top Passenger</div>
-        <div class="scorecard-val">{top_p} ({p_cnt.get(top_p,0)} Rides)</div>
-    </div>
-</div>
-"""
-st.markdown(score_html, unsafe_allow_html=True)
+c1, c2 = st.columns(2)
+with c1:
+    st.metric("👑 King of Wheel", f"{top_d} ({d_cnt.get(top_d,0)} Days)")
+with c2:
+    st.metric("🎒 Top Passenger", f"{top_p} ({p_cnt.get(top_p,0)} Rides)")
 
 tab_p, tab_r = st.tabs(["💵 Payouts", "📋 History"])
 
 with tab_p:
-    st.markdown('<p class="section-title">💎 Pairwise Net Settlements</p>', unsafe_allow_html=True)
+    st.subheader("💎 Pairwise Settlements")
     wa_lines = ["*🚗 Carpool Settlement*", "-----------------------"]
     
     if not settles:
@@ -209,45 +188,43 @@ with tab_p:
     else:
         settles.sort(key=lambda x: x[2], reverse=True)
         for deb, cred, amt in settles:
-            card_html = f"""
-            <div class="pairwise-card">
-                <div>
-                    <div class="payer-info">👉 {deb}</div>
-                    <div style="font-size:11px;color:#64748B;">Pays directly to {cred}</div>
-                </div>
-                <div class="payout-pill">₹{amt:,.0f}</div>
-            </div>
-            """
-            st.markdown(card_html, unsafe_allow_html=True)
+            st.warning(f"👉 {deb} pays {cred} -> ₹{amt:,.0f}")
             wa_lines.append(f"👉 *{deb}* pays *{cred}*: *₹{amt:.0f}*")
             
-    wa_lines.extend(["-----------------------", "💡 _Passenger Engine Isolation._"])
+    wa_lines.extend(["-----------------------", "💡 _Calculated via Engine Isolation._"])
     wa_text = "\n".join(wa_lines)
 
     st.write("**🟢 Output Code**")
-    st.markdown(f'<div class="whatsapp-box">{wa_text.replace("\n", "<br>")}</div>', unsafe_allow_html=True)
+    st.code(wa_text, language="markdown")
     st.write("")
     
     enc_msg = urllib.parse.quote(wa_text)
     st.link_button("💬 SHARE TO WHATSAPP", f"https://api.whatsapp.com/send?text={enc_msg}")
 
-    st.markdown('<p class="section-title">🌱 Sustainability Performance</p>', unsafe_allow_html=True)
+    st.subheader("🌱 Sustainability Profile")
     t_days = int(co2_kg / 0.06)
-    
-    eco_html = f"""
-    <div class="eco-flex-card">
-        <div class="eco-flex-title">🌱 MG Eco Impact Profile</div>
-        <div class="eco-metric-num">{co2_kg:,.1f} <span style="font-size:13px;color:#A7F3D0;">kg CO₂ Avoided</span></div>
-        <div class="eco-sub-text">Equivalent to saving <b>{t_days:,} Tree-Days</b> of absorption!</div>
-    </div>
-    """
-    st.markdown(eco_html, unsafe_allow_html=True)
+    st.metric("CO₂ Avoided", f"{co2_kg:,.1f} kg", f"{t_days:,} Tree-Days Saved")
     
     with st.popover("📋 View Calculation Basis"):
-        st.write("**Basis:** 130 KM baseline.")
-        st.write("- **Manish (BS4):** `0.18 kg/KM`")
-        st.write("- **Abhishek (BS6):** `0.14 kg/KM`")
-        st.write("- **Others (CNG):** `0.09 kg/KM`")
+        st.write("130 KM baseline engine calculation.")
+        st.write("- Manish: `0.18 kg/KM`")
+        st.write("- Abhishek: `0.14 kg/KM`")
+        st.write("- Others: `0.09 kg/KM`")
 
 with tab_r:
-    st.markdown('<p class="section-title">
+    st.subheader("📊 Historical Ledger")
+    with st.expander("🚗 Daily Trip Logs", expanded=True):
+        if not df_t.empty:
+            df_disp = df_t.copy()
+            df_disp["Date"] = df_disp["Date"].dt.strftime('%Y-%m-%d')
+            st.dataframe(df_disp.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
+        else:
+            st.info("No logs found.")
+            
+    with st.expander("💰 Shared Expense Bills", expanded=False):
+        if not df_e.empty:
+            df_edisp = df_e.copy()
+            df_edisp["Date"] = df_edisp["Date"].dt.strftime('%Y-%m-%d')
+            st.dataframe(df_edisp.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
+        else:
+            st.info("No bills found.")
