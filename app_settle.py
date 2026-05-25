@@ -56,7 +56,6 @@ eco_coefficients = {
 
 REPO = st.secrets.get("GITHUB_REPO", "").strip()
 
-# FIXED: Removed custom HEADERS block to avoid copy truncation errors completely
 URL_PREFIX = "https://api.github.com/repos/"
 TRIP_URL = URL_PREFIX + REPO + "/contents/carpool_logs.csv"
 EXPENSE_URL = URL_PREFIX + REPO + "/contents/carpool_expenses.csv"
@@ -91,10 +90,58 @@ if not df_expenses.empty:
 
 # --- TIMELINE CONTROLS ---
 st.markdown('<p class="section-title">📅 Settlement Week</p>', unsafe_allow_html=True)
-utc_now = datetime.datetime.utcnow()
-ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
-today = ist_now.date()
+u_now = datetime.datetime.utcnow()
+ist = u_now + datetime.timedelta(hours=5, minutes=30)
+tday = ist.date()
 
-days_since_monday = today.weekday()
-current_monday = today - datetime.timedelta(days=days_since_monday)
-current_friday = current_monday +
+# FIXED: Drastically shortened variables and math lines to guarantee safety from paste truncation
+wday = tday.weekday()
+td_mon = datetime.timedelta(days=wday)
+m_day = tday - td_mon
+
+td_fri = datetime.timedelta(days=4)
+f_day = m_day + td_fri
+
+m_str = m_day.strftime('%d %b')
+f_str = f_day.strftime('%d %b %Y')
+current_week_str = f"Current Week ({m_str} - {f_str})"
+past_week_str = "Week 21 (18 May - 22 May 2026)"
+
+selected_window = st.selectbox(
+    "Choose Billing Week Window:",
+    [current_week_str, past_week_str, "All Time Logs Cumulative"],
+    label_visibility="collapsed"
+)
+
+if selected_window == current_week_str:
+    start_w = pd.to_datetime(m_day)
+    td_end = datetime.timedelta(days=2)
+    end_w = pd.to_datetime(f_day) + td_end
+elif selected_window == past_week_str:
+    start_w = pd.to_datetime("2026-05-18")
+    end_w = pd.to_datetime("2026-05-24")
+
+if selected_window in [current_week_str, past_week_str]:
+    if not df_trips.empty:
+        df_trips = df_trips[(df_trips["Date"] >= start_w) & (df_trips["Date"] <= end_w)]
+    if not df_expenses.empty:
+        df_expenses = df_expenses[(df_expenses["Date"] >= start_w) & (df_expenses["Date"] <= end_w)]
+
+# --- CALCULATION ENGINE ---
+pairwise_matrix = {payer: {payee: 0.0 for payee in all_commuters} for payer in all_commuters}
+driver_counts = {n: 0 for n in all_commuters}
+passenger_counts = {n: 0 for n in all_commuters}
+total_trips_logged = 0
+total_carbon_offset_kg = 0.0
+
+if not df_trips.empty:
+    total_trips_logged = len(df_trips)
+    for _, row in df_trips.iterrows():
+        driver = str(row.get("Driver", "")).strip().title()
+        f_pass = str(row.get("Full Day Passengers", ""))
+        h_pass = str(row.get("Half Day Passengers", ""))
+        
+        full_list = [p.strip().title() for p in f_pass.split(",") if p.strip() and p.strip().lower() != 'none']
+        half_list = [p.strip().title() for p in h_pass.split(",") if p.strip() and p.strip().lower() != 'none']
+        
+        if driver in driver_counts
