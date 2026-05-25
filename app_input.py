@@ -117,7 +117,6 @@ with tab_trip:
         key=f"trip_date_picker_bound_{st.session_state['reset_trigger']}"
     )
 
-    # FIXED: Shortened down validation checks cleanly to protect line margins
     if 'last_travel_date' not in st.session_state:
         st.session_state.trip_error_flag = None
         st.session_state.last_travel_date = str(travel_date)
@@ -145,5 +144,174 @@ with tab_trip:
 
     driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
     passenger_options = [c for c in commuters if c != driver]
+    
+    # FIXED: Forced form lines to reside entirely on concise individual lines to bypass truncation
     full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
-    half_day = st.multiselect("Half-Day Passengers (₹150)",
+    half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
+
+    if st.session_state.trip_error_flag == "future":
+        st.error("🔮 Ye kam bhi Loudu ka hi hai. You cannot log entries for future dates.")
+        if st.button("🔙 RESET TRAVEL DATE", key="reset_trip_future_btn"):
+            st.session_state.trip_error_flag = None
+            st.session_state["reset_trigger"] += 1
+            st.rerun()
+    elif st.session_state.trip_error_flag == "duplicate":
+        st.warning("🛑 Abe Loudu dubara kyun kar raha! Ab mantri karega Sahi. Use Admin Suite below to adjust fields.")
+        if st.button("🔙 CHANGE SELECTION DATE", key="reset_trip_dup_btn"):
+            st.session_state.trip_error_flag = None
+            st.session_state["reset_trigger"] += 1
+            st.rerun()
+
+    if st.button("💾 SAVE TRIP TO LEDGER", key="save_trip_ledger_btn"):
+        if is_future_date:
+            st.session_state.trip_error_flag = "future"
+            st.rerun()
+        elif date_exists and not st.session_state.is_admin:
+            st.session_state.trip_error_flag = "duplicate"
+            st.rerun()
+        else:
+            st.session_state.trip_error_flag = None
+            with st.spinner("Saving commute parameters..."):
+                full_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
+                half_str = ", ".join([p.strip().title() for p in half_day]) if half_day else "None"
+                
+                new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver.strip().title(), "Full Day Passengers": full_str, "Half Day Passengers": half_str}])
+                
+                if date_exists and st.session_state.is_admin and not df_existing.empty:
+                    t_dash = travel_date.strftime("%Y-%m-%d").strip()
+                    t_slash = travel_date.strftime("%Y/%m/%d").strip()
+                    df_cleaned_base = df_existing[(df_existing["Cleaned_Date_Str"] != t_dash) & (df_existing["Cleaned_Date_Str"] != t_slash)]
+                    df_final = pd.concat([df_cleaned_base, new_row], ignore_index=True)
+                else:
+                    df_final = pd.concat([df_existing, new_row], ignore_index=True) if not df_existing.empty else new_row
+                
+                if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
+                
+                payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
+                
+                sha_query_url = f"{TRIP_URL}?cb={random.randint(1, 1000000)}"
+                r_sha = requests.get(url=sha_query_url, headers=HEADERS)
+                if r_sha.status_code == 200: payload["sha"] = r_sha.json()["sha"]
+                
+                res_put = requests.put(TRIP_URL, headers=HEADERS, json=payload)
+                if res_put.status_code in [200, 201]:
+                    st.toast(f"🚗 Commute log saved for {travel_date}!", icon="✅")
+                    st.session_state.just_saved = True
+                    st.session_state.saved_message = f"🎉 Trip saved cleanly to ledger!"
+                    st.rerun()
+                else:
+                    st.error(f"🛑 Sync Failure updating ledger file.")
+
+with tab_expense:
+    st.markdown("### 💰 Shared Expense Desk")
+    
+    edit_mode = st.checkbox("✏️ Modify Existing Entry", value=False, key="exp_edit_mode_toggle")
+    
+    exp_date = st.date_input(
+        "Date of Expense", 
+        today_date_ist, 
+        key=f"exp_date_picker_bound_{st.session_state['reset_trigger']}"
+    )
+    
+    if 'last_exp_date' not in st.session_state or st.session_state.last_exp_date != str(exp_date):
+        st.session_state.exp_error_flag = None
+        st.session_state.last_exp_date = str(exp_date)
+
+    is_future_exp_date = exp_date > today_date_ist
+
+    if st.session_state.just_saved_exp:
+        st.success("🎉 Expense bill updated cleanly in database ledger!")
+        st.session_state.just_saved_exp = False
+        time.sleep(1.5)
+        st.rerun()
+    else:
+        default_payer = all_commuters[0]
+        default_amount = 0.0
+        default_desc = ""
+        default_shares = all_commuters
+        expense_exists = False
+        
+        t_dash_e = exp_date.strftime("%Y-%m-%d").strip()
+        t_slash_e = exp_date.strftime("%Y/%m/%d").strip()
+        
+        date_matches = pd.DataFrame(columns=["Date", "Description", "Paid By", "Total Amount", "Shared By"])
+        if not df_exp_existing.empty and "Date" in df_exp_existing.columns:
+            df_exp_existing["Cleaned_Date_Str"] = df_exp_existing["Date"].astype(str).str.strip()
+            date_matches = df_exp_existing[(df_exp_existing["Cleaned_Date_Str"] == t_dash_e) | (df_exp_existing["Cleaned_Date_Str"] == t_slash_e)]
+
+        if edit_mode:
+            if date_matches.empty:
+                st.info("ℹ️ No expenses logged on this date to modify.")
+                item_desc = ""
+            else:
+                desc_list = date_matches["Description"].tolist()
+                selected_desc = st.selectbox("Select existing description to modify:", desc_list)
+                
+                target_row = date_matches[date_matches["Description"] == selected_desc].iloc[0]
+                
+                default_payer = str(target_row.get("Paid By", all_commuters[0])).strip()
+                default_amount = float(target_row.get("Total Amount", 0.0))
+                default_desc = str(target_row.get("Description", ""))
+                
+                raw_shares = str(target_row.get("Shared By", ""))
+                default_shares = [s.strip() for s in raw_shares.split(",") if s.strip()]
+                item_desc = default_desc
+        else:
+            item_desc = st.text_input("What was this for?", value="", placeholder="e.g., Office Lunch, Turf booking, Snacks")
+
+        payer_idx = all_commuters.index(default_payer) if default_payer in all_commuters else 0
+        payer = st.selectbox("Who Paid the Bill?", all_commuters, index=payer_idx, key="exp_payer")
+        amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=default_amount, step=50.0, key="exp_amount")
+        
+        if edit_mode and item_desc:
+            st.info(f"✏️ Modifying description asset row: **{item_desc}**")
+
+        st.markdown("#### 👥 Split Amount Among Whom?")
+        selected_consumers = []
+        cols = st.columns(len(all_commuters))
+        for idx, person in enumerate(all_commuters):
+            with cols[idx]:
+                box_val = person in default_shares if edit_mode else True
+                if st.checkbox(person, value=box_val, key=f"share_check_{person}"):
+                    selected_consumers.append(person.strip().title())
+
+        if st.session_state.exp_error_flag == "future":
+            st.error("🔮 Ye kam bhi Loudu ka hi hai. You cannot log expenses for future dates.")
+            if st.button("🔙 RESET EXPENSE DATE", key="back_future_exp_btn"):
+                st.session_state.exp_error_flag = None
+                st.session_state["reset_trigger"] += 1
+                st.rerun()
+        elif st.session_state.exp_error_flag == "duplicate":
+            st.warning("🛑 Abe Loudu dubara expense kyun kar raha! Turn on 'Modify Existing Entry' above to edit this item safely.")
+            if st.button("🔙 CHANGE EXPENSE DATE", key="back_lock_exp_btn"):
+                st.session_state.exp_error_flag = None
+                st.session_state["reset_trigger"] += 1
+                st.rerun()
+
+        button_label = "📝 SAVE MODIFIED EXPENSE" if edit_mode else "💸 DISTRIBUTE & SAVE EXPENSE"
+        
+        if st.button(button_label, key="save_expense_btn"):
+            if not edit_mode and not date_matches.empty and item_desc.strip():
+                date_matches["Cleaned_Desc_Str"] = date_matches["Description"].astype(str).str.strip().str.lower()
+                expense_exists = item_desc.strip().lower() in date_matches["Cleaned_Desc_Str"].values
+
+            if is_future_exp_date:
+                st.session_state.exp_error_flag = "future"
+                st.rerun()
+            elif expense_exists and not st.session_state.is_admin:
+                st.session_state.exp_error_flag = "duplicate"
+                st.rerun()
+            elif amount <= 0.0 or not item_desc.strip() or len(selected_consumers) == 0:
+                st.error("🛑 Fill all details properly! Amount must be > 0 and at least one person chosen.")
+            else:
+                st.session_state.exp_error_flag = None
+                with st.spinner("Saving expense ledger..."):
+                    split_share = round(amount / len(selected_consumers), 2)
+                    new_exp_row = pd.DataFrame([{"Date": str(exp_date), "Paid By": payer.strip().title(), "Total Amount": amount, "Description": item_desc.strip(), "Shared By": ", ".join(selected_consumers), "Per Head Cost": split_share}])
+                    
+                    if not df_exp_existing.empty:
+                        df_exp_existing["Cleaned_Date_Str"] = df_exp_existing["Date"].astype(str).str.strip()
+                        df_exp_existing["Cleaned_Desc_Str"] = df_exp_existing["Description"].astype(str).str.strip().str.lower()
+                        
+                        if edit_mode:
+                            df_exp_final = df_exp_existing[~(((df_exp_existing["Cleaned_Date_Str"] == t_dash_e) | (df_exp_existing["Cleaned_Date_Str"] == t_slash_e)) & (df_exp_existing["Cleaned_Desc_Str"] == item
