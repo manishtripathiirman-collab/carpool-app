@@ -117,4 +117,33 @@ with tab_trip:
         key=f"trip_date_picker_bound_{st.session_state['reset_trigger']}"
     )
 
-    if 'last_travel_date' not in st.session_state or st.session_state.last_travel_
+    # FIXED: Shortened down validation checks cleanly to protect line margins
+    if 'last_travel_date' not in st.session_state:
+        st.session_state.trip_error_flag = None
+        st.session_state.last_travel_date = str(travel_date)
+    elif st.session_state.last_travel_date != str(travel_date):
+        st.session_state.trip_error_flag = None
+        st.session_state.last_travel_date = str(travel_date)
+
+    is_future_date = travel_date > today_date_ist
+    
+    date_exists = False
+    if not df_existing.empty and "Date" in df_existing.columns:
+        t_dash = travel_date.strftime("%Y-%m-%d").strip()
+        t_slash = travel_date.strftime("%Y/%m/%d").strip()
+        df_existing["Cleaned_Date_Str"] = df_existing["Date"].astype(str).str.strip()
+        date_exists = (t_dash in df_existing["Cleaned_Date_Str"].values) or (t_slash in df_existing["Cleaned_Date_Str"].values)
+
+    if st.session_state.just_saved:
+        st.success(st.session_state.saved_message)
+        st.session_state.just_saved = False
+        time.sleep(1.5)
+        st.rerun()
+
+    commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
+    if not commuters: commuters = all_commuters
+
+    driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
+    passenger_options = [c for c in commuters if c != driver]
+    full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
+    half_day = st.multiselect("Half-Day Passengers (₹150)",
