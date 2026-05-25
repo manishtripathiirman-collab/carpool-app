@@ -9,7 +9,7 @@ import random
 
 st.set_page_config(page_title="MG Logger", page_icon="🚗", layout="centered")
 
-# Visual Engine: Pure Dark Layout with Fixed Icon Selector Rules
+# Visual Engine: Pure Dark Layout with Fixed Text Target Selectors
 st.markdown(
     """
     <style>
@@ -28,7 +28,6 @@ st.markdown(
     }
     .mobile-title { font-family: sans-serif; font-size: 24px !important; font-weight: 900; color: #FFFFFF !important; margin-bottom: 20px; }
     
-    /* 📋 Balanced Typography Selection Rules - Prevents Icon Text Overrides */
     div[data-testid="stWidgetLabel"] p, 
     div[data-testid="stMarkdownContainer"] p, 
     div[data-testid="stTab"] p,
@@ -57,10 +56,10 @@ st.markdown(
     .admin-btn > div.stButton > button { background: linear-gradient(90deg, #EF4444, #DC2626) !important; box-shadow: 0px 4px 12px rgba(239, 68, 68, 0.3); }
     
     .giant-lock-banner { 
-        background-color: #0F172A; border: 3px solid #EF4444; padding: 40px 20px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0px 0px 30px rgba(239, 68, 68, 0.4); 
+        background-color: #0F172A; border: 3px solid #EF4444; padding: 30px 20px; border-radius: 20px; text-align: center; margin-top: 15px; margin-bottom: 15px; box-shadow: 0px 0px 30px rgba(239, 68, 68, 0.4); 
     }
     .giant-future-banner { 
-        background-color: #0F172A; border: 3px solid #EAB308; padding: 40px 20px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0px 0px 30px rgba(234, 179, 8, 0.4); 
+        background-color: #0F172A; border: 3px solid #EAB308; padding: 30px 20px; border-radius: 20px; text-align: center; margin-top: 15px; margin-bottom: 15px; box-shadow: 0px 0px 30px rgba(234, 179, 8, 0.4); 
     }
     </style>
     """, 
@@ -81,10 +80,7 @@ if "holiday_list" not in st.session_state: st.session_state.holiday_list = []
 if "just_saved" not in st.session_state: st.session_state.just_saved = False
 if "just_saved_exp" not in st.session_state: st.session_state.just_saved_exp = False
 if "saved_message" not in st.session_state: st.session_state.saved_message = ""
-if "last_processed_date" not in st.session_state: st.session_state.last_processed_date = None
-if "disable_lock" not in st.session_state: st.session_state.disable_lock = False
 if "is_admin" not in st.session_state: st.session_state.is_admin = False
-if "reset_trigger" not in st.session_state: st.session_state["reset_trigger"] = 0
 
 TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
 REPO = st.secrets.get("GITHUB_REPO", "").strip()
@@ -117,102 +113,86 @@ if TOKEN and REPO:
 tab_trip, tab_expense = st.tabs(["🚗 Log Commute", "💰 Split Expenses"])
 
 with tab_trip:
-    travel_date = st.date_input(
-        "Date of Travel", 
-        today_date_ist, 
-        key=f"trip_date_picker_bound_{st.session_state['reset_trigger']}"
-    )
-
-    if st.session_state.last_processed_date != str(travel_date):
-        st.session_state.disable_lock = False
-        st.session_state.last_processed_date = str(travel_date)
-
+    travel_date = st.date_input("Date of Travel", today_date_ist, key="trip_date_picker")
     is_future_date = travel_date > today_date_ist
     
+    # Pre-calculate date checks
     date_exists = False
     if not df_existing.empty and "Date" in df_existing.columns:
-        target_dash = travel_date.strftime("%Y-%m-%d").strip()
-        target_slash = travel_date.strftime("%Y/%m/%d").strip()
+        t_dash = travel_date.strftime("%Y-%m-%d").strip()
+        t_slash = travel_date.strftime("%Y/%m/%d").strip()
         df_existing["Cleaned_Date_Str"] = df_existing["Date"].astype(str).str.strip()
-        date_exists = (target_dash in df_existing["Cleaned_Date_Str"].values) or (target_slash in df_existing["Cleaned_Date_Str"].values)
+        date_exists = (t_dash in df_existing["Cleaned_Date_Str"].values) or (t_slash in df_existing["Cleaned_Date_Str"].values)
 
-    if is_future_date:
-        st.markdown(
-            """
-            <div class='giant-future-banner'>
-                <h1 style='font-size:75px;margin:0;'>🔮</h1>
-                <h2 style='font-size:38px;color:#EAB308;font-weight:900;margin:15px 0;line-height:1.2;'>Ye kam bhi Loudu ka hi hai</h2>
-                <h4 style='font-size:20px;color:#F1F5F9;font-weight:700;margin:0;'>You cannot log entries for future dates.</h4>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-        if st.button("🔙 GO BACK / CHANGE DATE", key="back_future_btn"):
-            st.session_state["reset_trigger"] += 1
-            st.rerun()
-
-    elif st.session_state.just_saved:
+    if st.session_state.just_saved:
         st.success(st.session_state.saved_message)
         st.session_state.just_saved = False
         time.sleep(1.5)
         st.rerun()
 
-    elif date_exists and not st.session_state.is_admin and not st.session_state.disable_lock:
-        st.markdown(
-            """
-            <div class='giant-lock-banner'>
-                <h1 style='font-size:75px;margin:0;'>🛑</h1>
-                <h2 style='font-size:38px;color:#EF4444;font-weight:900;margin:15px 0;line-height:1.2;'>Abe Loudu dubara kyun kar raha!</h2>
-                <h4 style='font-size:20px;color:#F1F5F9;font-weight:700;margin:0;'>Ab mantri karega Sahi.</h4>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-        if st.button("🔙 GO BACK / CHANGE DATE", key="back_lock_btn"):
-            st.session_state["reset_trigger"] += 1
-            st.rerun()
+    # Form parameters remain completely open and editable at all times
+    commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
+    if not commuters: commuters = all_commuters
 
-    else:
-        commuters = [c for c in all_commuters if c not in st.session_state.holiday_list]
-        if not commuters: commuters = all_commuters
+    driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
+    passenger_options = [c for c in commuters if c != driver]
+    full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
+    half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
 
-        driver = st.selectbox("Designated Driver", commuters, key="driver_select_box")
-        passenger_options = [c for c in commuters if c != driver]
-        full_day = st.multiselect("Full-Day Passengers (₹300)", passenger_options, key="full_select_box")
-        half_day = st.multiselect("Half-Day Passengers (₹150)", [p for p in passenger_options if p not in full_day], key="half_select_box")
-
-        if st.button("💾 SAVE TRIP TO LEDGER"):
-            full_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
-            half_str = ", ".join([p.strip().title() for p in half_day]) if half_day else "None"
-            
-            new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver.strip().title(), "Full Day Passengers": full_str, "Half Day Passengers": half_str}])
-            
-            if date_exists and st.session_state.is_admin and not df_existing.empty:
-                t_dash = travel_date.strftime("%Y-%m-%d").strip()
-                t_slash = travel_date.strftime("%Y/%m/%d").strip()
-                df_existing["Cleaned_Date_Str"] = df_existing["Date"].astype(str).str.strip()
-                df_cleaned_base = df_existing[(df_existing["Cleaned_Date_Str"] != t_dash) & (df_existing["Cleaned_Date_Str"] != t_slash)]
-                df_final = pd.concat([df_cleaned_base, new_row], ignore_index=True)
-            else:
-                df_final = pd.concat([df_existing, new_row], ignore_index=True) if not df_existing.empty else new_row
-            
-            if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
-            
-            payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
-            
-            sha_query_url = f"{TRIP_URL}?cb={random.randint(1, 1000000)}"
-            r_sha = requests.get(url=sha_query_url, headers=HEADERS)
-            if r_sha.status_code == 200: payload["sha"] = r_sha.json()["sha"]
-            
-            res_put = requests.put(TRIP_URL, headers=HEADERS, json=payload)
-            if res_put.status_code in [200, 201]:
-                st.toast(f"🚗 Commute log saved for {travel_date}!", icon="✅")
-                st.session_state.just_saved = True
-                st.session_state.saved_message = f"🎉 Trip saved cleanly to ledger!"
-                st.session_state.disable_lock = True
-                st.rerun()
-            else:
-                st.error(f"🛑 Sync Failure updating ledger file.")
+    if st.button("💾 SAVE TRIP TO LEDGER"):
+        if is_future_date:
+            st.markdown(
+                """
+                <div class='giant-future-banner'>
+                    <h1 style='font-size:60px;margin:0;'>🔮</h1>
+                    <h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;line-height:1.2;'>Ye kam bhi Loudu ka hi hai</h2>
+                    <h4 style='font-size:18px;color:#F1F5F9;font-weight:700;margin:0;'>You cannot log entries for future dates.</h4>
+                </div>
+                """, 
+                unsafe_allow_html=True
+            )
+        elif date_exists and not st.session_state.is_admin:
+            st.markdown(
+                """
+                <div class='giant-lock-banner'>
+                    <h1 style='font-size:60px;margin:0;'>🛑</h1>
+                    <h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:10px 0;line-height:1.2;'>Abe Loudu dubara kyun kar raha!</h2>
+                    <h4 style='font-size:18px;color:#F1F5F9;font-weight:700;margin:0;'>Ab mantri karega Sahi. Use Admin Suite below to adjust fields.</h4>
+                </div>
+                """, 
+                unsafe_allow_html=True
+            )
+        else:
+            with st.spinner("Saving commute parameters..."):
+                full_str = ", ".join([p.strip().title() for p in full_day]) if full_day else "None"
+                half_str = ", ".join([p.strip().title() for p in half_day]) if half_day else "None"
+                
+                new_row = pd.DataFrame([{"Date": str(travel_date), "Driver": driver.strip().title(), "Full Day Passengers": full_str, "Half Day Passengers": half_str}])
+                
+                if date_exists and st.session_state.is_admin and not df_existing.empty:
+                    t_dash = travel_date.strftime("%Y-%m-%d").strip()
+                    t_slash = travel_date.strftime("%Y/%m/%d").strip()
+                    df_cleaned_base = df_existing[(df_existing["Cleaned_Date_Str"] != t_dash) & (df_existing["Cleaned_Date_Str"] != t_slash)]
+                    df_final = pd.concat([df_cleaned_base, new_row], ignore_index=True)
+                else:
+                    df_final = pd.concat([df_existing, new_row], ignore_index=True) if not df_existing.empty else new_row
+                
+                if "Cleaned_Date_Str" in df_final.columns: df_final = df_final.drop(columns=["Cleaned_Date_Str"])
+                
+                payload = {"message": f"Update trip logs for {travel_date}", "content": base64.b64encode(df_final.to_csv(index=False).encode("utf-8")).decode("utf-8")}
+                
+                sha_query_url = f"{TRIP_URL}?cb={random.randint(1, 1000000)}"
+                r_sha = requests.get(url=sha_query_url, headers=HEADERS)
+                if r_sha.status_code == 200: payload["sha"] = r_sha.json()["sha"]
+                
+                res_put = requests.put(TRIP_URL, headers=HEADERS, json=payload)
+                if res_put.status_code in [200, 201]:
+                    st.toast(f"🚗 Commute log saved for {travel_date}!", icon="✅")
+                    st.session_state.just_saved = True
+                    st.session_state.saved_message = f"🎉 Trip saved cleanly to ledger!"
+                    st.rerun()
+                else:
+                    st.error(f"🛑 Sync Failure updating ledger file.")
 
 with tab_expense:
     st.markdown("### 💰 Shared Expense Desk")
@@ -221,18 +201,7 @@ with tab_expense:
     exp_date = st.date_input("Date of Expense", today_date_ist, key="exp_date_picker")
     is_future_exp_date = exp_date > today_date_ist
 
-    if is_future_exp_date:
-        st.markdown(
-            """
-            <div class='giant-future-banner'>
-                <h1 style='font-size:75px;margin:0;'>🔮</h1>
-                <h2 style='font-size:38px;color:#EAB308;font-weight:900;margin:15px 0;line-height:1.2;'>Ye kam bhi Loudu ka hi hai</h2>
-                <h4 style='font-size:20px;color:#F1F5F9;font-weight:700;margin:0;'>You cannot log expenses for future dates.</h4>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-    elif st.session_state.just_saved_exp:
+    if st.session_state.just_saved_exp:
         st.success("🎉 Expense bill updated cleanly in database ledger!")
         st.session_state.just_saved_exp = False
         time.sleep(1.5)
@@ -248,7 +217,6 @@ with tab_expense:
         t_slash_e = exp_date.strftime("%Y/%m/%d").strip()
         
         date_matches = pd.DataFrame(columns=["Date", "Description", "Paid By", "Total Amount", "Shared By"])
-        
         if not df_exp_existing.empty and "Date" in df_exp_existing.columns:
             df_exp_existing["Cleaned_Date_Str"] = df_exp_existing["Date"].astype(str).str.strip()
             date_matches = df_exp_existing[(df_exp_existing["Cleaned_Date_Str"] == t_dash_e) | (df_exp_existing["Cleaned_Date_Str"] == t_slash_e)]
@@ -272,81 +240,93 @@ with tab_expense:
                 item_desc = default_desc
         else:
             item_desc = st.text_input("What was this for?", value="", placeholder="e.g., Office Lunch, Turf booking, Snacks")
-            if not date_matches.empty and item_desc.strip():
+
+        payer_idx = all_commuters.index(default_payer) if default_payer in all_commuters else 0
+        payer = st.selectbox("Who Paid the Bill?", all_commuters, index=payer_idx, key="exp_payer")
+        amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=default_amount, step=50.0, key="exp_amount")
+        
+        if edit_mode and item_desc:
+            st.info(f"✏️ Modifying description asset row: **{item_desc}**")
+
+        st.markdown("#### 👥 Split Amount Among Whom?")
+        selected_consumers = []
+        cols = st.columns(len(all_commuters))
+        for idx, person in enumerate(all_commuters):
+            with cols[idx]:
+                is_checked = person in default_shares if edit_mode else True
+                if st.checkbox(person, value=is_checked, key=f"share_check_{person}"):
+                    selected_consumers.append(person.strip().title())
+
+        button_label = "📝 SAVE MODIFIED EXPENSE" if edit_mode else "💸 DISTRIBUTE & SAVE EXPENSE"
+        
+        if st.button(button_label):
+            # Check duplicate matching metrics inside intercept trigger window loop
+            if not edit_mode and not date_matches.empty and item_desc.strip():
                 date_matches["Cleaned_Desc_Str"] = date_matches["Description"].astype(str).str.strip().str.lower()
                 expense_exists = item_desc.strip().lower() in date_matches["Cleaned_Desc_Str"].values
 
-        if expense_exists and not st.session_state.is_admin:
-            st.markdown(
-                """
-                <div class='giant-lock-banner'>
-                    <h1 style='font-size:75px;margin:0;'>🛑</h1>
-                    <h2 style='font-size:38px;color:#EF4444;font-weight:900;margin:15px 0;line-height:1.2;'>Abe Loudu dubara expense kyun kar raha!</h2>
-                    <h4 style='font-size:20px;color:#F1F5F9;font-weight:700;margin:0;'>Turn on 'Modify Existing Entry' above to edit this item safely.</h4>
-                </div>
-                """, 
-                unsafe_allow_html=True
-            )
-        else:
-            payer_idx = all_commuters.index(default_payer) if default_payer in all_commuters else 0
-            payer = st.selectbox("Who Paid the Bill?", all_commuters, index=payer_idx, key="exp_payer")
-            amount = st.number_input("Total Amount Spent (₹)", min_value=0.0, value=default_amount, step=50.0, key="exp_amount")
-            
-            if edit_mode and item_desc:
-                st.info(f"✏️ Modifying description asset row: **{item_desc}**")
-
-            st.markdown("#### 👥 Split Amount Among Whom?")
-            selected_consumers = []
-            cols = st.columns(len(all_commuters))
-            for idx, person in enumerate(all_commuters):
-                with cols[idx]:
-                    is_checked = person in default_shares if edit_mode else True
-                    if st.checkbox(person, value=is_checked, key=f"share_check_{person}"):
-                        selected_consumers.append(person.strip().title())
-
-            button_label = "📝 SAVE MODIFIED EXPENSE" if edit_mode else "💸 DISTRIBUTE & SAVE EXPENSE"
-            
-            if st.button(button_label):
-                if amount <= 0.0 or not item_desc.strip() or len(selected_consumers) == 0:
-                    st.error("🛑 Fill all details properly! Amount must be > 0 and at least one person chosen.")
-                else:
-                    with st.spinner("Saving expense ledger..."):
-                        split_share = round(amount / len(selected_consumers), 2)
-                        new_exp_row = pd.DataFrame([{"Date": str(exp_date), "Paid By": payer.strip().title(), "Total Amount": amount, "Description": item_desc.strip(), "Shared By": ", ".join(selected_consumers), "Per Head Cost": split_share}])
+            if is_future_exp_date:
+                st.markdown(
+                    """
+                    <div class='giant-future-banner'>
+                        <h1 style='font-size:60px;margin:0;'>🔮</h1>
+                        <h2 style='font-size:32px;color:#EAB308;font-weight:900;margin:10px 0;line-height:1.2;'>Ye kam bhi Loudu ka hi hai</h2>
+                        <h4 style='font-size:18px;color:#F1F5F9;font-weight:700;margin:0;'>You cannot log expenses for future dates.</h4>
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+            elif expense_exists and not st.session_state.is_admin:
+                st.markdown(
+                    """
+                    <div class='giant-lock-banner'>
+                        <h1 style='font-size:60px;margin:0;'>🛑</h1>
+                        <h2 style='font-size:32px;color:#EF4444;font-weight:900;margin:15px 0;line-height:1.2;'>Abe Loudu dubara expense kyun kar raha!</h2>
+                        <h4 style='font-size:18px;color:#F1F5F9;font-weight:700;margin:0;'>Turn on 'Modify Existing Entry' above to edit this item safely.</h4>
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+            elif amount <= 0.0 or not item_desc.strip() or len(selected_consumers) == 0:
+                st.error("🛑 Fill all details properly! Amount must be > 0 and at least one person chosen.")
+            else:
+                with st.spinner("Saving expense ledger..."):
+                    split_share = round(amount / len(selected_consumers), 2)
+                    new_exp_row = pd.DataFrame([{"Date": str(exp_date), "Paid By": payer.strip().title(), "Total Amount": amount, "Description": item_desc.strip(), "Shared By": ", ".join(selected_consumers), "Per Head Cost": split_share}])
+                    
+                    if not df_exp_existing.empty:
+                        df_exp_existing["Cleaned_Date_Str"] = df_exp_existing["Date"].astype(str).str.strip()
+                        df_exp_existing["Cleaned_Desc_Str"] = df_exp_existing["Description"].astype(str).str.strip().str.lower()
                         
-                        if not df_exp_existing.empty:
-                            df_exp_existing["Cleaned_Date_Str"] = df_exp_existing["Date"].astype(str).str.strip()
-                            df_exp_existing["Cleaned_Desc_Str"] = df_exp_existing["Description"].astype(str).str.strip().str.lower()
-                            
-                            if edit_mode:
-                                df_exp_final = df_exp_existing[~(((df_exp_existing["Cleaned_Date_Str"] == t_dash_e) | (df_exp_existing["Cleaned_Date_Str"] == t_slash_e)) & (df_exp_existing["Cleaned_Desc_Str"] == item_desc.strip().lower()))]
-                                df_exp_final = pd.concat([df_exp_final, new_exp_row], ignore_index=True)
-                            else:
-                                df_exp_final = pd.concat([df_exp_existing, new_exp_row], ignore_index=True)
+                        if edit_mode:
+                            df_exp_final = df_exp_existing[~(((df_exp_existing["Cleaned_Date_Str"] == t_dash_e) | (df_exp_existing["Cleaned_Date_Str"] == t_slash_e)) & (df_exp_existing["Cleaned_Desc_Str"] == item_desc.strip().lower()))]
+                            df_exp_final = pd.concat([df_exp_final, new_exp_row], ignore_index=True)
                         else:
-                            df_exp_final = new_exp_row
-                        
-                        if "Cleaned_Date_Str" in df_exp_final.columns: df_exp_final = df_exp_final.drop(columns=["Cleaned_Date_Str"])
-                        if "Cleaned_Desc_Str" in df_exp_final.columns: df_exp_final = df_exp_final.drop(columns=["Cleaned_Desc_Str"])
-                        
-                        csv_data = df_exp_final.to_csv(index=False)
-                        encoded_bytes = base64.b64encode(csv_data.encode("utf-8"))
-                        encoded_string = encoded_bytes.decode("utf-8")
-                        
-                        payload_exp = {
-                            "message": f"Log expense asset: {item_desc}", 
-                            "content": encoded_string
-                        }
-                        
-                        r_exp_sha = requests.get(f"{EXPENSE_URL}?getexpsha={random.randint(1, 1000000)}", headers=HEADERS)
-                        if r_exp_sha.status_code == 200: payload_exp["sha"] = r_exp_sha.json()["sha"]
-                        
-                        if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
-                            st.toast(f"💸 Bill update recorded for {item_desc}!", icon="💰")
-                            st.session_state.just_saved_exp = True
-                            st.rerun()
-                        else:
-                            st.error("🛑 Network Sync Failure pushing update payload to server.")
+                            df_exp_final = pd.concat([df_exp_existing, new_exp_row], ignore_index=True)
+                    else:
+                        df_exp_final = new_exp_row
+                    
+                    if "Cleaned_Date_Str" in df_exp_final.columns: df_exp_final = df_exp_final.drop(columns=["Cleaned_Date_Str"])
+                    if "Cleaned_Desc_Str" in df_exp_final.columns: df_exp_final = df_exp_final.drop(columns=["Cleaned_Desc_Str"])
+                    
+                    csv_data = df_exp_final.to_csv(index=False)
+                    encoded_bytes = base64.b64encode(csv_data.encode("utf-8"))
+                    encoded_string = encoded_bytes.decode("utf-8")
+                    
+                    payload_exp = {
+                        "message": f"Log expense asset: {item_desc}", 
+                        "content": encoded_string
+                    }
+                    
+                    r_exp_sha = requests.get(f"{EXPENSE_URL}?getexpsha={random.randint(1, 1000000)}", headers=HEADERS)
+                    if r_exp_sha.status_code == 200: payload_exp["sha"] = r_exp_sha.json()["sha"]
+                    
+                    if requests.put(EXPENSE_URL, headers=HEADERS, json=payload_exp).status_code in [200, 201]:
+                        st.toast(f"💸 Bill update recorded for {item_desc}!", icon="💰")
+                        st.session_state.just_saved_exp = True
+                        st.rerun()
+                    else:
+                        st.error("🛑 Network Sync Failure pushing update payload to server.")
 
 st.markdown("---")
 with st.expander("🛠️ Admin Management Suite"):
