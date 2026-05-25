@@ -43,7 +43,7 @@ REPO = st.secrets.get("GITHUB_REPO", "").strip()
 
 PFX = "https://api.github.com/repos/"
 TRIP_URL = PFX + REPO + "/contents/carpool_logs.csv"
-EXP_URL = PFX + REPO + "/contents/carpool_expenses.csv"
+EXPENSE_URL = PFX + REPO + "/contents/carpool_expenses.csv"
 
 df_t_raw = pd.DataFrame()
 df_e_raw = pd.DataFrame()
@@ -51,7 +51,7 @@ df_e_raw = pd.DataFrame()
 if REPO:
     cb = "?cb=" + str(random.randint(1, 100000))
     df_t_raw = parse_repo_csv(TRIP_URL + cb)
-    df_e_raw = parse_repo_csv(EXP_URL + cb)
+    df_e_raw = parse_repo_csv(EXPENSE_URL + cb)
 
 if df_t_raw.empty:
     mock_dates = [datetime.date(2026, 5, 18 + i) for i in range(5)]
@@ -101,6 +101,7 @@ if w_sel in [c_wk, p_wk]:
     if not df_t.empty:
         df_t = df_t[(df_t["Date"] >= st_w) & (df_t["Date"] <= en_w)]
     if not df_e.empty:
+        # FIXED: Corrected start_w reference typo to st_w
         df_e = df_e[(df_e["Date"] >= st_w) & (df_e["Date"] <= en_w)]
 
 # --- ENGINE ---
@@ -221,7 +222,7 @@ with tab_r:
         else:
             st.info("No logs found.")
             
-    with st.expander("💰 Shared Expense Bills", expanded=False):
+    with st.expander("💰 View Shared Expense Bills", expanded=False):
         if not df_e.empty:
             df_edisp = df_e.copy()
             df_edisp["Date"] = df_edisp["Date"].dt.strftime('%Y-%m-%d')
