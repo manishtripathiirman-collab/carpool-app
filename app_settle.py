@@ -8,7 +8,11 @@ import time
 import random
 import urllib.parse
 
-st.set_page_config(page_title="MG", layout="centered")
+st.set_page_config(
+    page_title="MG",
+    layout="centered"
+)
+
 st.title("💰 MG Settlement Desk")
 
 def parse_repo_csv(url):
@@ -22,7 +26,13 @@ def parse_repo_csv(url):
     return pd.DataFrame()
 
 names = ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"]
-eco_co = {"Manish": 0.18, "Abhishek": 0.14, "Dk": 0.09, "Ajay": 0.09, "Ankit": 0.09}
+eco_co = {
+    "Manish": 0.18,
+    "Abhishek": 0.14,
+    "Dk": 0.09,
+    "Ajay": 0.09,
+    "Ankit": 0.09
+}
 
 REPO = st.secrets.get("GITHUB_REPO", "").strip()
 PFX = "https://api.github.com/repos/"
@@ -38,8 +48,10 @@ if REPO:
 df_t = df_t_raw.copy()
 df_e = df_e_raw.copy()
 
-if not df_t.empty: df_t["Date"] = pd.to_datetime(df_t["Date"], errors='coerce')
-if not df_e.empty: df_e["Date"] = pd.to_datetime(df_e["Date"], errors='coerce')
+if not df_t.empty:
+    df_t["Date"] = pd.to_datetime(df_t["Date"], errors='coerce')
+if not df_e.empty:
+    df_e["Date"] = pd.to_datetime(df_e["Date"], errors='coerce')
 
 st.subheader("📅 Settlement Week")
 u_now = datetime.datetime.utcnow()
@@ -50,19 +62,29 @@ wday = tday.weekday()
 m_day = tday - datetime.timedelta(days=wday)
 f_day = m_day + datetime.timedelta(days=4)
 
-dropdown_options = [f"Current Week ({m_day.strftime('%d %b')} - {f_day.strftime('%d %b %Y')})"]
+dropdown_options = [
+    f"Current Week ({m_day.strftime('%d %b')} - {f_day.strftime('%d %b %Y')})"
+]
 for w_back in range(1, 5):
     p_mon = m_day - datetime.timedelta(weeks=w_back)
     p_fri = p_mon + datetime.timedelta(days=4)
-    dropdown_options.append(f"Week ({p_mon.strftime('%d %b')} - {p_fri.strftime('%d %b %Y')})")
+    dropdown_options.append(
+        f"Week ({p_mon.strftime('%d %b')} - {p_fri.strftime('%d %b %Y')})"
+    )
 dropdown_options.append("Cumulative")
 
-w_sel = st.selectbox("Window Selector", dropdown_options, label_visibility="collapsed")
+w_sel = st.selectbox(
+    "Window Selector",
+    dropdown_options,
+    label_visibility="collapsed"
+)
 
 if "Current Week" in w_sel:
-    st_w, en_w = pd.to_datetime(m_day), pd.to_datetime(f_day) + datetime.timedelta(days=2)
+    st_w = pd.to_datetime(m_day)
+    en_w = pd.to_datetime(f_day) + datetime.timedelta(days=2)
 elif w_sel == "Cumulative":
-    st_w, en_w = pd.to_datetime("2020-01-01"), pd.to_datetime("2030-01-01")
+    st_w = pd.to_datetime("2020-01-01")
+    en_w = pd.to_datetime("2030-01-01")
 else:
     try:
         clean_dates = w_sel.split("(")[1].split(")")[0]
@@ -70,13 +92,16 @@ else:
         st_w = pd.to_datetime(f"{start_p} {tday.year}")
         en_w = pd.to_datetime(end_p) + datetime.timedelta(days=2)
     except:
-        st_w, en_w = pd.to_datetime(m_day), pd.to_datetime(f_day) + datetime.timedelta(days=2)
+        st_w = pd.to_datetime(m_day)
+        en_w = pd.to_datetime(f_day) + datetime.timedelta(days=2)
 
-if not df_t.empty: df_t = df_t[(df_t["Date"] >= st_w) & (df_t["Date"] <= en_w)]
-if not df_e.empty: df_e = df_e[(df_e["Date"] >= st_w) & (df_e["Date"] <= en_w)]
+if not df_t.empty:
+    df_t = df_t[(df_t["Date"] >= st_w) & (df_t["Date"] <= en_w)]
+if not df_e.empty:
+    df_e = df_e[(df_e["Date"] >= st_w) & (df_e["Date"] <= en_w)]
 
-# --- GLOBAL LEDGER CALCULATIONS ---
-net_balances = {n: 0.0 for n in names}
+# --- STRIKT PERSON TO PERSON MATRIX ---
+mat = {p1: {p2: 0.0 for p2 in names} for p1 in names}
 d_cnt = {n: 0 for n in names}
 p_cnt = {n: 0 for n in names}
 t_trips = 0
@@ -86,27 +111,29 @@ if not df_t.empty:
     t_trips = len(df_t)
     for _, row in df_t.iterrows():
         drv = str(row.get("Driver", "")).strip().title()
-        f_lst = [p.strip().title() for p in str(row.get("Full Day Passengers", "")).split(",") if p.strip() and p.strip().lower() != 'none']
-        h_lst = [p.strip().title() for p in str(row.get("Half Day Passengers", "")).split(",") if p.strip() and p.strip().lower() != 'none']
+        f_s = str(row.get("Full Day Passengers", ""))
+        h_s = str(row.get("Half Day Passengers", ""))
+        
+        f_lst = [p.strip().title() for p in f_s.split(",") if p.strip() and p.strip().lower() != 'none']
+        h_lst = [p.strip().title() for p in h_s.split(",") if p.strip() and p.strip().lower() != 'none']
         
         if drv in d_cnt: d_cnt[drv] += 1
         for p in f_lst:
             if p in p_cnt: p_cnt[p] += 1
             if p in names and drv in names and p != drv:
-                net_balances[p] -= 300.0
-                net_balances[drv] += 300.0
+                mat[p][drv] += 300.0
             co2_kg += (130.0 * eco_co.get(p, 0.09))
         for p in h_lst:
             if p in p_cnt: p_cnt[p] += 1
             if p in names and drv in names and p != drv:
-                net_balances[p] -= 150.0
-                net_balances[drv] += 150.0
+                mat[p][drv] += 150.0
             co2_kg += (130.0 * eco_co.get(p, 0.09) * 0.5)
 
 if not df_e.empty:
     for _, row in df_e.iterrows():
         pyr = str(row.get("Paid By", "")).strip().title()
-        c_lst = [p.strip().title() for p in str(row.get("Shared By", "")).split(",") if p.strip()]
+        s_f = str(row.get("Shared By", ""))
+        c_lst = [p.strip().title() for p in s_f.split(",") if p.strip()]
         try: amt = float(row.get("Total Amount", row.get("Total amount", 0.0)))
         except: amt = 0.0
         
@@ -114,29 +141,27 @@ if not df_e.empty:
             p_cost = round(amt / len(c_lst), 2)
             for p in c_lst:
                 if p in names and pyr in names and p != pyr:
-                    net_balances[p] -= p_cost
-                    net_balances[pyr] += p_cost
+                    mat[p][pyr] += p_cost
 
-# --- ADVANCED GLOBAL REDUCTION ENGINE ---
-debtors = sorted([(n, net_balances[n]) for n in names if net_balances[n] < -0.01], key=lambda x: x[1])
-creditors = sorted([(n, net_balances[n]) for n in names if net_balances[n] > 0.01], key=lambda x: x[1], reverse=True)
-
+# --- STRICT INDIVIDUAL NETTING ---
 settles = []
-d_idx, c_idx = 0, 0
+done_pairs = set()
 
-while d_idx < len(debtors) and c_idx < len(creditors):
-    d_name, d_bal = debtors[d_idx]
-    c_name, c_bal = creditors[c_idx]
-    
-    amount_to_transfer = min(abs(d_bal), c_bal)
-    if amount_to_transfer > 0.01:
-        settles.append((d_name, c_name, round(amount_to_transfer, 2)))
-        
-    debtors[d_idx] = (d_name, d_bal + amount_to_transfer)
-    creditors[c_idx] = (c_name, c_bal - amount_to_transfer)
-    
-    if abs(debtors[d_idx][1]) < 0.01: d_idx += 1
-    if creditors[c_idx][1] < 0.01: c_idx += 1
+for p1 in names:
+    for p2 in names:
+        if p1 != p2 and (p1, p2) not in done_pairs and (p2, p1) not in done_pairs:
+            done_pairs.add((p1, p2))
+            ow1 = mat[p1][p2]
+            ow2 = mat[p2][p1]
+            
+            if ow1 > ow2:
+                df_val = ow1 - ow2
+                if df_val > 0.01:
+                    settles.append((p1, p2, round(df_val, 2)))
+            elif ow2 > ow1:
+                df_val = ow2 - ow1
+                if df_val > 0.01:
+                    settles.append((p2, p1, round(df_val, 2)))
 
 # --- DISPLAY ---
 st.subheader("⚡ Weekly Stats")
@@ -150,21 +175,23 @@ with c2: st.metric("🎒 Top Passenger", f"{top_p} ({p_cnt.get(top_p,0)} Rides)"
 tab_p, tab_r = st.tabs(["💵 Payouts", "📋 History"])
 
 with tab_p:
-    st.subheader("💎 Dynamic Net Settlements")
-    wa_lines = ["*🚗 Net Carpool Settlements*", "-----------------------"]
+    st.subheader("💎 Person to Person Settlements")
+    wa_lines = ["*🚗 Carpool Pairwise Settlements*", "-----------------------"]
     
     if not settles:
-        st.info("All balances are perfectly clear!")
+        st.info("Balances zeroed out!")
     else:
+        settles.sort(key=lambda x: x[2], reverse=True)
         for deb, cred, amt in settles:
             st.warning(f"👉 {deb} pays {cred} -> ₹{amt:,.0f}")
             wa_lines.append(f"👉 *{deb}* pays *{cred}*: *₹{amt:.0f}*")
             
-    wa_lines.extend(["-----------------------", "💡 _Optimized to minimize group transactions._"])
+    wa_lines.extend(["-----------------------", "💡 _Strict direct relationship calculations._"])
     wa_text = "\n".join(wa_lines)
 
     st.write("**🟢 Output Code**")
     st.code(wa_text, language="markdown")
+    st.write("")
     
     enc_msg = urllib.parse.quote(wa_text)
     st.link_button("💬 SHARE TO WHATSAPP", f"https://api.whatsapp.com/send?text={enc_msg}")
@@ -182,7 +209,7 @@ with tab_r:
             st.dataframe(df_disp.sort_values(by="Date", ascending=False), use_container_width=True, hide_index=True)
         else: st.info("No logs found.")
             
-    with st.expander("💰 Shared Expense Bills", expanded=False):
+    with st.expander("💰 View Shared Expense Bills", expanded=False):
         if not df_e.empty:
             df_edisp = df_e.copy()
             df_edisp["Date"] = df_edisp["Date"].dt.strftime('%Y-%m-%d')
