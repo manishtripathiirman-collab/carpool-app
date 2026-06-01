@@ -54,12 +54,12 @@ if REPO:
     df_e_raw = parse_repo_csv(EXPENSE_URL + cb)
 
 if df_t_raw.empty:
-    mock_dates = [datetime.date(2026, 5, 18 + i) for i in range(5)]
+    mock_dates = [datetime.date(2026, 5, 18 + i) for i in range(15)]
     df_t_raw = pd.DataFrame({
-        "Date": mock_dates,
-        "Driver": ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"],
-        "Full Day Passengers": ["Abhishek,Dk", "Manish,Ajay", "Ankit,Manish", "Dk,Abhishek", "Ajay,Dk"],
-        "Half Day Passengers": ["Ankit", "None", "Ajay", "None", "Manish"]
+        "Date": mock_dates * 2,
+        "Driver": ["Manish", "Abhishek", "Dk", "Ajay", "Ankit"] * 6,
+        "Full Day Passengers": ["Abhishek,Dk", "Manish,Ajay"] * 15,
+        "Half Day Passengers": ["Ankit", "None"] * 15
     })
 
 df_t = df_t_raw.copy()
@@ -82,27 +82,53 @@ f_day = m_day + datetime.timedelta(days=4)
 m_str = m_day.strftime('%d %b')
 f_str = f_day.strftime('%d %b %Y')
 c_wk = f"Current Week ({m_str} - {f_str})"
-p_wk = "Week 21 (18 May - 22 May 2026)"
+
+# --- FIXED: AUTO-GENERATE PREVIOUS WEEKS DYNAMICALLY ---
+dropdown_options = [c_wk]
+
+# Generate the last 4 previous operational weeks dynamically
+for w_back in range(1, 5):
+    p_mon = m_day - datetime.timedelta(weeks=w_back)
+    p_fri = p_mon + datetime.timedelta(days=4)
+    p_str = f"Week ({p_mon.strftime('%d %b')} - {p_fri.strftime('%d %b %Y')})"
+    dropdown_options.append(p_str)
+
+dropdown_options.append("Cumulative")
 
 w_sel = st.selectbox(
     "Window Selector",
-    [c_wk, p_wk, "Cumulative"],
+    dropdown_options,
     label_visibility="collapsed"
 )
 
+# --- DETECT SELECTED BOUNDARIES ---
 if w_sel == c_wk:
     st_w = pd.to_datetime(m_day)
     en_w = pd.to_datetime(f_day) + datetime.timedelta(days=2)
-elif w_sel == p_wk:
-    st_w = pd.to_datetime("2026-05-18")
-    en_w = pd.to_datetime("2026-05-24")
+elif w_sel == "Cumulative":
+    st_w = pd.to_datetime("2020-01-01")
+    en_w = pd.to_datetime("2030-01-01")
+else:
+    # Parse dates straight out of your text string option
+    try:
+        clean_dates = w_sel.split("(")[1].split(")")[0]
+        start_part, end_part = clean_dates.split(" - ")
+        
+        # Resolve the baseline tracking year
+        cur_year = tday.year
+        if "Jan" in start_part and tday.month == 12:
+            cur_year += 1
+            
+        st_w = pd.to_datetime(f"{start_part} {cur_year}")
+        en_w = pd.to_datetime(end_part) + datetime.timedelta(days=2)
+    except:
+        st_w = pd.to_datetime(m_day)
+        en_w = pd.to_datetime(f_day) + datetime.timedelta(days=2)
 
-if w_sel in [c_wk, p_wk]:
-    if not df_t.empty:
-        df_t = df_t[(df_t["Date"] >= st_w) & (df_t["Date"] <= en_w)]
-    if not df_e.empty:
-        # FIXED: Corrected start_w reference typo to st_w
-        df_e = df_e[(df_e["Date"] >= st_w) & (df_e["Date"] <= en_w)]
+if not df_t.empty:
+    df_t = df_t[(df_t["Date"] >= st_w) & (df_t["Date"] <= en_w)]
+if not df_e.empty:
+    df_e = df_e[(df_e["Date"] >= st_w) & (df_e["Date"] <= en_w)]
 
 # --- ENGINE ---
 mat = {p1: {p2: 0.0 for p2 in names} for p1 in names}
