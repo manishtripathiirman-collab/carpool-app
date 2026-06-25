@@ -25,4 +25,5 @@ Date,Driver,Full Day Passengers,Half Day Passengers
 2026-06-18,Manish,"Ajay, Ankit, Dk",
 2026-06-22,Ankit,"Manish, Dk, Ajay",
 2026-06-23,Ajay,"Manish, Dk, Ankit",
-2026-06-24,Manish,"Ankit, Ajay",None
+2026-06-24,Manish,"Ankit, Ajay",
+2026-06-25,Ankit,"Manish, Dk, Ajay",None
